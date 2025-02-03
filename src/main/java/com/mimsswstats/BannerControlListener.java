@@ -23,11 +23,9 @@ public class BannerControlListener implements Listener {
 
         if (siegeId == null) return;
 
-        // Get all online players and check if they're participating
         for (Player player : Bukkit.getOnlinePlayers()) {
             SiegeSide playerSide = SiegeSide.getPlayerSiegeSide(siege, player);
 
-            // If player is on either side, record participation
             if (playerSide != SiegeSide.NOBODY) {
                 plugin.getStatsManager().addSiegeParticipant(siege, player);
             }
