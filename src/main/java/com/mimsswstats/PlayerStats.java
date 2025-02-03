@@ -15,12 +15,12 @@ public class PlayerStats {
     private int kills;
     private final Set<String> uniqueSiegeParticipations;
     private int deaths;
-    private final Set<String> participatedSiegeIds; // Track unique siege participations
+    private final Set<String> participatedSiegeIds; 
     private double totalDamage;
     private int totalSieges;
     private int totalWins;
     private int totalLosses;
-    private final Set<String> participatedSieges; // Track unique siege participations
+    private final Set<String> participatedSieges;
     private final List<SiegePerformance> recentPerformances;
     private int wins;
     private int losses;
@@ -113,13 +113,13 @@ public class PlayerStats {
     }
     public void addLastPerformance(SiegePerformance performance) {
         recentPerformances.add(performance);
-        if (recentPerformances.size() > 10) { // Keep only last 10 performances
+        if (recentPerformances.size() > 10) { 
             recentPerformances.remove(0);
         }
     }
 
     public void addSiegeParticipation(String siegeId) {
-        if (uniqueSiegeParticipations.add(siegeId)) { // Returns true only if siegeId wasn't already present
+        if (uniqueSiegeParticipations.add(siegeId)) { 
             totalSieges++;
         }
     }
