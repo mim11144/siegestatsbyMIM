@@ -67,6 +67,11 @@
 
     <dependencies>
         <dependency>
+	    <groupId>com.github.TownyAdvanced</groupId>
+	    <artifactId>SiegeWar</artifactId>
+	    <version>2.15.0</version>
+	</dependency>
+        <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
