@@ -1,0 +1,7 @@
+storage:
+  save-interval: 300
+  backup-enabled: true
+debug-mode: false
+formatting:
+  date-format: "MM/dd/yyyy HH:mm:ss"
+  number-format: "#,##0.##"
