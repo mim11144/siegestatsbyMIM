@@ -47,7 +47,6 @@ public class PlayerDeathListener implements Listener {
 
                 if (siegeId != null) {
                     if (damagerSide != damagedSide && damagerSide != SiegeSide.NOBODY && damagedSide != SiegeSide.NOBODY) {
-                        // Record kill/death stats with siege ID
                         plugin.getStatsManager().recordSiegeAction(siegeId, killer.getName(), 1, 0, 0);
                         plugin.getStatsManager().recordSiegeAction(siegeId, victim.getName(), 0, 1, 0);
 
@@ -61,7 +60,6 @@ public class PlayerDeathListener implements Listener {
                 String siegeId = plugin.getSiegeListener().getActiveSiegeId(siege);
 
                 if (siegeId != null) {
-                        // Record kill/death stats with siege ID
                         plugin.getStatsManager().recordSiegeAction(siegeId, victim.getName(), 0, 1, 0);
 
                         System.out.println("[DEBUG] Recorded kill in siege " + siegeId +
@@ -76,22 +74,17 @@ public class PlayerDeathListener implements Listener {
             Siege nearestSiege = null;
             double smallestDistanceToSiege = 0;
 
-            //Find nearest eligible siege
             for (Siege candidateSiege : SiegeController.getSieges()) {
 
-                //Skip if siege is not active
                 if (!candidateSiege.getStatus().isActive())
                     continue;
 
-                //Skip if player is not is siege-zone
                 if (!SiegeWarDistanceUtil.isInSiegeZone(deadPlayer, candidateSiege))
                     continue;
 
-                //Skip if player is not an official attacker or defender in siege
                 if (SiegeSide.getPlayerSiegeSide(candidateSiege, deadPlayer) == SiegeSide.NOBODY)
                     continue;
 
-                //Set nearestSiege if it is 1st viable one OR closer than smallestDistanceToSiege.
                 double candidateSiegeDistanceToPlayer = deadPlayer.getLocation().distance(candidateSiege.getFlagLocation());
                 if (nearestSiege == null || candidateSiegeDistanceToPlayer < smallestDistanceToSiege) {
                     nearestSiege = candidateSiege;
