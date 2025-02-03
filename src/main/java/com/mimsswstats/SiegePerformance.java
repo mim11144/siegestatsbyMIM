@@ -19,7 +19,6 @@ public class SiegePerformance {
         this.timestamp = System.currentTimeMillis();
     }
 
-    // Getters
     public boolean isWon() { return won; }
     public int getKills() { return kills; }
     public int getDeaths() { return deaths; }
