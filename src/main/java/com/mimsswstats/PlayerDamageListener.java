@@ -26,22 +26,17 @@ public class PlayerDamageListener implements Listener {
         Siege nearestSiege = null;
         double smallestDistanceToSiege = 0;
 
-        //Find nearest eligible siege
         for (Siege candidateSiege : SiegeController.getSieges()) {
 
-            //Skip if siege is not active
             if (!candidateSiege.getStatus().isActive())
                 continue;
 
-            //Skip if player is not is siege-zone
             if (!SiegeWarDistanceUtil.isInSiegeZone(deadPlayer, candidateSiege))
                 continue;
 
-            //Skip if player is not an official attacker or defender in siege
             if (SiegeSide.getPlayerSiegeSide(candidateSiege, deadPlayer) == SiegeSide.NOBODY)
                 continue;
 
-            //Set nearestSiege if it is 1st viable one OR closer than smallestDistanceToSiege.
             double candidateSiegeDistanceToPlayer = deadPlayer.getLocation().distance(candidateSiege.getFlagLocation());
             if (nearestSiege == null || candidateSiegeDistanceToPlayer < smallestDistanceToSiege) {
                 nearestSiege = candidateSiege;
@@ -53,7 +48,6 @@ public class PlayerDamageListener implements Listener {
     @EventHandler
     public void onPlayerDamage(EntityDamageByEntityEvent event) {
         try {
-            // Early returns if not valid player combat
             if (!(event.getDamager() instanceof Player) || !(event.getEntity() instanceof Player)) {
                 return;
             }
@@ -65,33 +59,27 @@ public class PlayerDamageListener implements Listener {
                 return;
             }
 
-            // Get the siege the players are participating in
             Resident damagedResident = TownyUniverse.getInstance().getResident(damaged.getName());
             Town damagedTown = damagedResident.getTown();
             Siege siege = findNearbyActiveSiegeWherePlayerIsParticipant(damaged, damagedTown);
 
             if (siege != null) {
-                // Get siege ID using the town name and number
                 String siegeId = siege.getTown().getName().toLowerCase() + "_" +
                         plugin.getStatsManager().getTownSiegeCount(siege.getTown().getName().toLowerCase());
 
                 plugin.getLogger().info("[DEBUG] Processing damage in siege: " + siegeId);
 
-                // Get siege sides
                 SiegeSide damagerSide = SiegeSide.getPlayerSiegeSide(siege, damager);
                 SiegeSide damagedSide = SiegeSide.getPlayerSiegeSide(siege, damaged);
 
-                // Only record damage if players are on opposite sides
                 if (damagerSide != damagedSide && damagerSide != SiegeSide.NOBODY && damagedSide != SiegeSide.NOBODY) {
                     double finalDamage = event.getFinalDamage();
 
-                    // Record the damage
                     plugin.getLogger().info("[DEBUG] Recording damage: " + damager.getName() +
                             " dealt " + finalDamage + " damage to " + damaged.getName());
 
                     plugin.getStatsManager().recordSiegeAction(siegeId, damager.getName(), 0, 0, finalDamage);
 
-                    // Add both players as participants
                     plugin.getStatsManager().addSiegeParticipant(siege, damaged);
                     plugin.getStatsManager().addSiegeParticipant(siege, damager);
                 }
