@@ -35,14 +35,11 @@ public class SiegeListener implements Listener {
             return;
         }
 
-        // Get the town name safely
         String townName = siege.getTown() != null ? siege.getTown().getName() : "unknown";
         plugin.getLogger().info("[DEBUG] Siege started for town: " + townName);
 
-        // Start tracking the siege with proper town name
         String siegeId = plugin.getStatsManager().startNewSiege(siege);
 
-        // Validate siege ID
         if (siegeId == null || siegeId.isEmpty()) {
             plugin.getLogger().warning("[DEBUG] Failed to generate valid siege ID!");
             return;
@@ -50,14 +47,11 @@ public class SiegeListener implements Listener {
 
         activeSiegeIds.put(siege, siegeId);
 
-        // Log the current state with more detail
         plugin.getLogger().info("[DEBUG] Active siege IDs after adding:");
         activeSiegeIds.forEach((s, id) -> {
             String sTownName = s.getTown() != null ? s.getTown().getName() : "unknown";
             plugin.getLogger().info("  - Siege ID: " + id + " for town: " + sTownName);
         });
-
-        // Verify the siege was properly stored
         SiegeStats stats = plugin.getStatsManager().getSiegeStats(townName.toLowerCase(),
                 plugin.getStatsManager().getTownSiegeCount(townName.toLowerCase()));
 
