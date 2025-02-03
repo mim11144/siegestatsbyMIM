@@ -30,34 +30,31 @@ public class SiegeCompletionListener implements Listener {
             return;
         }
 
-        // Get the winning side
+  
         SiegeSide winningSide = siege.getSiegeWinner();
 
-        // Get all online players and check their participation
+
         for (Player player : Bukkit.getOnlinePlayers()) {
-            // Get player's side in the siege
+
             SiegeSide playerSide = SiegeSide.getPlayerSiegeSide(siege, player);
 
             if (playerSide != SiegeSide.NOBODY) {
-                // Record participation first
+ 
                 plugin.getStatsManager().addSiegeParticipant(siege, player);
 
-                // Determine if player won
+         
                 boolean won = (playerSide == winningSide);
 
-                // Create performance record
                 SiegePerformance performance = new SiegePerformance(
                         won,
-                        0, // These will be added from existing stats
+                        0, 
                         0,
                         0,
                         siege
                 );
 
-                // Update player stats with the win/loss
                 plugin.getStatsManager().updatePlayerStats(player.getName(), performance);
 
-                // Explicitly update wins/losses
                 PlayerStats stats = plugin.getStatsManager().getPlayerStats(player.getName());
                 if (won) {
                     stats.addWin();
@@ -67,6 +64,5 @@ public class SiegeCompletionListener implements Listener {
             }
         }
 
-        // End siege tracking
         plugin.getStatsManager().endSiege(siegeId);
     }}
