@@ -20,13 +20,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SiegeStatsManager {
-    // Track number of sieges per town
     private final SiegeStatsPlugin plugin;
     private ConcurrentHashMap<String, Integer> townSiegeCounter;
-    // Store active and completed sieges
     private ConcurrentHashMap<String, SiegeStats> activeSieges;
     private ConcurrentHashMap<String, SiegeStats> completedSieges;
-    // Store overall player stats
     private ConcurrentHashMap<String, PlayerStats> playerStats;
     private Map<Siege, List<Player>> siegeParticipants;
     public SiegeStatsManager(SiegeStatsPlugin plugin) {
@@ -42,7 +39,6 @@ public class SiegeStatsManager {
     public void savePlayerStats() {
         JSONObject rootStats = new JSONObject();
 
-        // Save player stats
         JSONObject playerStatsJson = new JSONObject();
         for (Map.Entry<String, PlayerStats> entry : playerStats.entrySet()) {
             JSONObject stats = new JSONObject();
@@ -57,23 +53,18 @@ public class SiegeStatsManager {
         }
         rootStats.put("playerStats", playerStatsJson);
 
-        // Save siege counters
         JSONObject siegeCountersJson = new JSONObject();
         townSiegeCounter.forEach((town, count) ->
                 siegeCountersJson.put(town, count));
         rootStats.put("siegeCounters", siegeCountersJson);
 
-        // Save active and completed sieges
         JSONObject siegesJson = new JSONObject();
         JSONObject activeSiegesJson = new JSONObject();
         JSONObject completedSiegesJson = new JSONObject();
-
-        // Save active sieges
         for (Map.Entry<String, SiegeStats> entry : activeSieges.entrySet()) {
             activeSiegesJson.put(entry.getKey(), serializeSiegeStats(entry.getValue()));
         }
 
-        // Save completed sieges
         for (Map.Entry<String, SiegeStats> entry : completedSieges.entrySet()) {
             completedSiegesJson.put(entry.getKey(), serializeSiegeStats(entry.getValue()));
         }
@@ -82,7 +73,6 @@ public class SiegeStatsManager {
         siegesJson.put("completed", completedSiegesJson);
         rootStats.put("sieges", siegesJson);
 
-        // Save to file
         File pluginDir = new File("plugins/SiegeStats");
         pluginDir.mkdirs();
 
@@ -93,13 +83,11 @@ public class SiegeStatsManager {
         }
     }
     public void resetAllStats() {
-        // Clear all maps
         this.playerStats.clear();
         this.townSiegeCounter.clear();
         this.activeSieges.clear();
         this.completedSieges.clear();
 
-        // Save the empty state to persist it
         savePlayerStats();
     }
     private JSONObject serializeSiegeStats(SiegeStats siegeStats) {
@@ -109,7 +97,6 @@ public class SiegeStatsManager {
         stats.put("startTime", siegeStats.getStartTime());
         stats.put("active", siegeStats.isActive());
 
-        // Serialize participant stats
         JSONObject participantsJson = new JSONObject();
         siegeStats.getParticipantStats().forEach((playerName, playerStats) -> {
             JSONObject participantStats = new JSONObject();
@@ -131,7 +118,6 @@ public class SiegeStatsManager {
         siegeStats.setStartTime(((Long) statsJson.get("startTime")));
         siegeStats.setActive((Boolean) statsJson.get("active"));
 
-        // Load participants
         JSONObject participantsJson = (JSONObject) statsJson.get("participants");
         if (participantsJson != null) {
             participantsJson.forEach((playerName, statsObj) -> {
@@ -147,12 +133,10 @@ public class SiegeStatsManager {
 
         return siegeStats;
     }
-    // In SiegeStatsManager.java
     public void recordSiegeAction(String siegeId, String playerName, int kills, int deaths, double damage) {
         plugin.getLogger().info("[DEBUG] Recording action for " + playerName + " in siege " + siegeId +
                 " - Kills: " + kills + ", Deaths: " + deaths + ", Damage: " + damage);
 
-        // Update siege-specific stats
         SiegeStats siegeStats = activeSieges.get(siegeId);
         if (siegeStats != null) {
             siegeStats.recordPlayerAction(playerName, kills, deaths, damage);
@@ -160,7 +144,6 @@ public class SiegeStatsManager {
             plugin.getLogger().info("[DEBUG] Current participants: " + siegeStats.getParticipantStats().keySet());
         } else {
             plugin.getLogger().warning("[DEBUG] Failed to find siege with ID: " + siegeId);
-            // Try to find the siege in completed sieges
             siegeStats = completedSieges.get(siegeId);
             if (siegeStats != null) {
                 siegeStats.recordPlayerAction(playerName, kills, deaths, damage);
@@ -170,7 +153,6 @@ public class SiegeStatsManager {
             }
         }
 
-        // Update overall player stats
         PlayerStats playerStats = this.playerStats.computeIfAbsent(playerName,
                 k -> new PlayerStats(playerName));
 
@@ -180,7 +162,6 @@ public class SiegeStatsManager {
             playerStats.addDamage(damage);
         }
 
-        // Save after each action
         savePlayerStats();
     }
 
@@ -199,17 +180,14 @@ public class SiegeStatsManager {
     public SiegeStats getSiegeStats(String townName, int siegeNumber) {
         String siegeId = townName.toLowerCase() + "_" + siegeNumber;
 
-        // First check active sieges
         SiegeStats stats = activeSieges.get(siegeId);
         if (stats != null) {
             return stats;
         }
 
-        // Then check completed sieges
         return completedSieges.get(siegeId);
     }
 
-    // Original methods preserved
     public PlayerStats getPlayerStats(String playerName) {
         return playerStats.get(playerName);
     }
@@ -257,7 +235,6 @@ public class SiegeStatsManager {
         siegeParticipants.computeIfAbsent(siege, k -> new ArrayList<>())
                 .add(player);
 
-        // Update total sieges count for player
         PlayerStats stats = playerStats.computeIfAbsent(player.getName(),
                 k -> new PlayerStats(player.getName()));
 
@@ -291,7 +268,6 @@ public class SiegeStatsManager {
         savePlayerStats();
     }
 
-    // In SiegeStatsManager.java
     public String startNewSiege(Siege siege) {
         if (siege == null || siege.getTown() == null) {
             plugin.getLogger().warning("[DEBUG] Invalid siege or town object in startNewSiege");
@@ -301,15 +277,12 @@ public class SiegeStatsManager {
         String townName = siege.getTown().getName().toLowerCase();
         plugin.getLogger().info("[DEBUG] Starting new siege for town: " + townName);
 
-        // Get or create the next siege number for this town
         int siegeNumber = townSiegeCounter.compute(townName, (k, v) -> v == null ? 1 : v + 1);
         plugin.getLogger().info("[DEBUG] Assigned siege number: " + siegeNumber);
 
-        // Create unique identifier for this siege
         String siegeId = generateSiegeId(townName, siegeNumber);
         plugin.getLogger().info("[DEBUG] Generated siege ID: " + siegeId);
 
-        // Create and store new siege stats with validation
         SiegeStats stats = new SiegeStats(townName, siegeNumber);
         if (stats == null) {  plugin.getLogger().warning("[DEBUG] Failed to create SiegeStats object!");
             return null;
@@ -317,7 +290,6 @@ public class SiegeStatsManager {
 
         activeSieges.put(siegeId, stats);
 
-        // Verify storage
         if (!activeSieges.containsKey(siegeId)) {
             plugin.getLogger().warning("[DEBUG] Failed to store siege in activeSieges map!");
             return null;
@@ -335,8 +307,6 @@ public class SiegeStatsManager {
         try {
             JSONParser parser = new JSONParser();
             JSONObject rootStats = (JSONObject) parser.parse(new FileReader(statsFile));
-
-            // Load player stats
             JSONObject playerStatsJson = (JSONObject) rootStats.get("playerStats");
             if (playerStatsJson != null) {
                 for (Object key : playerStatsJson.keySet()) {
@@ -355,7 +325,6 @@ public class SiegeStatsManager {
                 }
             }
 
-            // Load siege counters
             JSONObject siegeCountersJson = (JSONObject) rootStats.get("siegeCounters");
             if (siegeCountersJson != null) {
                 siegeCountersJson.forEach((town, count) ->
@@ -363,14 +332,12 @@ public class SiegeStatsManager {
             }
             JSONObject siegesJson = (JSONObject) rootStats.get("sieges");
             if (siegesJson != null) {
-                // Load active sieges
                 JSONObject activeSiegesJson = (JSONObject) siegesJson.get("active");
                 if (activeSiegesJson != null) {
                     activeSiegesJson.forEach((siegeId, statsObj) ->
                             activeSieges.put((String)siegeId, deserializeSiegeStats((JSONObject)statsObj)));
                 }
 
-                // Load completed sieges
                 JSONObject completedSiegesJson = (JSONObject) siegesJson.get("completed");
                 if (completedSiegesJson != null) {
                     completedSiegesJson.forEach((siegeId, statsObj) ->
