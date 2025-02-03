@@ -94,12 +94,11 @@ public class SiegeStatsCommand implements CommandExecutor {
             return;
         }
 
-        // Calculate K/D ratio
         double kdRatio = playerStats.getDeaths() == 0 ?
                 playerStats.getKills() :
                 (double) playerStats.getKills() / playerStats.getDeaths();
 
-        // Calculate win rate
+
         double winRate = playerStats.getTotalSieges() == 0 ? 0 :
                 (double) playerStats.getTotalWins() / playerStats.getTotalSieges() * 100;
 
@@ -116,7 +115,6 @@ public class SiegeStatsCommand implements CommandExecutor {
         sender.sendMessage("  §7• §fDefeats: §c" + playerStats.getTotalLosses());
         sender.sendMessage("  §7• §fWin Rate: §e" + String.format("%.1f", winRate) + "%");
     }
-    // In handleSiegeStats method of SiegeStatsCommand.java
     private void handleSiegeStats(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage("§c/siegestats siege <townname> [number]");
@@ -126,7 +124,6 @@ public class SiegeStatsCommand implements CommandExecutor {
         String townName = args[1].toLowerCase();
         SiegeStatsManager statsManager = plugin.getStatsManager();
 
-        // Debug information
         sender.sendMessage("§7[Debug] Searching for siege data for town: " + townName);
 
         Integer siegeCount = statsManager.getTownSiegeCount(townName);
@@ -162,7 +159,6 @@ public class SiegeStatsCommand implements CommandExecutor {
             return;
         }
 
-        // Display participant stats sorted by damage
         sender.sendMessage("§eParticipant Statistics (Sorted by Damage):");
         participants.entrySet().stream()
                 .filter(entry -> entry.getValue().getTotalDamage() > 0 ||
@@ -180,7 +176,6 @@ public class SiegeStatsCommand implements CommandExecutor {
                     ));
                 });
 
-        // Show siege status
         if (!siegeStats.isActive()) {
             long duration = System.currentTimeMillis() - siegeStats.getStartTime();
             String durationStr = String.format("%.1f minutes", duration / (1000.0 * 60));
@@ -189,7 +184,6 @@ public class SiegeStatsCommand implements CommandExecutor {
             sender.sendMessage("§eSiege Status: §aActive");
         }
     }
-    // In SiegeStatsCommand.java
     private void showSiegeHistory(CommandSender sender, String[] args) {
         if(args.length < 2) {
             sender.sendMessage("§cUsage: /siegestats history <player>");
@@ -207,17 +201,14 @@ public class SiegeStatsCommand implements CommandExecutor {
         });
     }
     private void handleReset(CommandSender sender) {
-        // Check if sender is OP
         if (!sender.isOp()) {
             sender.sendMessage("§c✖ This command is only available to server operators.");
             return;
         }
 
-        // Reset all stats
         plugin.getStatsManager().resetAllStats();
         sender.sendMessage("§a✔ All siege stats have been reset successfully.");
 
-        // Broadcast to all ops
         plugin.getServer().getOnlinePlayers().forEach(player -> {
             if (player.isOp() && player != sender) {
                 player.sendMessage("§e[SiegeStats] §7All stats were reset by " + sender.getName());
@@ -232,7 +223,7 @@ public class SiegeStatsCommand implements CommandExecutor {
         }
 
         String statType = args[1].toLowerCase();
-        int topCount = 10; // Default top count
+        int topCount = 10; 
 
         if (args.length >= 3) {
             try {
@@ -250,7 +241,6 @@ public class SiegeStatsCommand implements CommandExecutor {
         SiegeStatsManager statsManager = plugin.getStatsManager();
         ConcurrentHashMap<String, PlayerStats> playerStats = statsManager.getPlayerStats();
 
-        // Header based on stat type
         String headerTitle = switch (statType) {
             case "kills" -> "Kills";
             case "damage" -> "Damage";
@@ -265,10 +255,8 @@ public class SiegeStatsCommand implements CommandExecutor {
 
         sender.sendMessage("§6§l══════ Top " + topCount + " Players by " + headerTitle + " ══════");
 
-        // Filter and sort players
         List<PlayerStats> sortedStats = playerStats.values().stream()
                 .filter(stats -> {
-                    // Filter out players with 0 in the relevant stat
                     return switch (statType) {
                         case "kills" -> stats.getKills() > 0;
                         case "damage" -> stats.getTotalDamage() > 0;
@@ -277,7 +265,6 @@ public class SiegeStatsCommand implements CommandExecutor {
                     };
                 })
                 .sorted((s1, s2) -> {
-                    // Sort based on stat type
                     return switch (statType) {
                         case "kills" -> Integer.compare(s2.getKills(), s1.getKills());
                         case "damage" -> Double.compare(s2.getTotalDamage(), s1.getTotalDamage());
@@ -303,7 +290,6 @@ public class SiegeStatsCommand implements CommandExecutor {
                 default -> "0";
             };
 
-            // Format the message with ranking
             sender.sendMessage(String.format("§e%d. §f%s §7» §6%s %s",
                     i + 1,
                     stats.getPlayerName(),
