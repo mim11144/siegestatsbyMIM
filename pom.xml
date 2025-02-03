@@ -69,18 +69,12 @@
         <dependency>
 	    <groupId>com.github.TownyAdvanced</groupId>
 	    <artifactId>SiegeWar</artifactId>
-	    <version>2.15.0</version>
+	    <version>Tag</version>
 	</dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
-        </dependency>
-        <dependency>
-            <groupId>swimtrashataddingdependencies</groupId>
-            <artifactId>sw</artifactId>
-            <version>2</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.palmergames.bukkit.towny</groupId>
@@ -105,11 +99,6 @@
             <artifactId>Brewery</artifactId>
             <version>3.1.1</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>townycamps</groupId>
-            <artifactId>townycamps</artifactId>
-            <version>1</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
