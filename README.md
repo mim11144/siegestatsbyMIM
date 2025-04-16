@@ -1,4 +1,5 @@
-###**a siege stats plugin made by your favourite sigma! - mimgankle**
+###a siege stats plugin made by your favourite sigma! - mimgankle
+
 Now released siegestatsbyMIM v1, which moves us from beta state to an actual release by these updates:
 - **Added Assist System**
 - **Patched deaths to count everytime even if not killed by player**
