@@ -39,7 +39,6 @@ private SiegeStats siegeStats;
         String townName = siege.getTown().getName();
         plugin.getLogger().info("[DEBUG] Siege starting for town: " + townName);
 
-        // Check if this siege object is already being tracked (shouldn't happen ideally)
         if (activeSiegeIds.containsKey(siege)) {
             plugin.getLogger().warning("[DEBUG] Siege object for town " + townName + " is already being tracked with ID: " + activeSiegeIds.get(siege) + ". Ignoring duplicate start event.");
             return;
