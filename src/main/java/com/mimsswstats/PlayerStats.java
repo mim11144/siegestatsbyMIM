@@ -1,137 +1,86 @@
 package com.mimsswstats;
 
-import com.gmail.goosius.siegewar.objects.Siege;
-import com.mimsswstats.SiegePerformance;
-import com.mimsswstats.SiegeStats;
-
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID; // Import UUID
 
 public class PlayerStats {
-    private final String playerName;
-    private int kills;
-    private final Set<String> uniqueSiegeParticipations;
-    private int deaths;
-    private final Set<String> participatedSiegeIds; 
+    private final UUID playerUUID; // <<< Use UUID as the identifier
+    private String lastKnownName; // Store for display/logging convenience
+
+    private int totalKills;
+    private int totalDeaths;
     private double totalDamage;
-    private int totalSieges;
+    private double totalCaptureTime;
+    private int totalSiegesParticipated;
     private int totalWins;
     private int totalLosses;
-    private final Set<String> participatedSieges;
-    private final List<SiegePerformance> recentPerformances;
-    private int wins;
-    private int losses;
-    private ArrayList<SiegePerformance> lastPerformances;
-    private ConcurrentHashMap<Siege, SiegeStats> siegeStats;
+    private int totalAssists;
 
-    public PlayerStats(String playerName) {
-        this.playerName = playerName;
-        this.kills = 0;
-        this.totalSieges = 0;
+    private final Set<String> uniqueSiegeParticipations; // Keep siege IDs as Strings for now
+
+    // Constructor now takes UUID and Name
+    public PlayerStats(UUID playerUUID, String initialName) {
+        this.playerUUID = playerUUID;
+        this.lastKnownName = initialName;
+        // ... initialize other stats to 0 ...
+        this.totalKills = 0;
+        this.totalDeaths = 0;
+        this.totalDamage = 0.0;
+        this.totalCaptureTime = 0.0;
+        this.totalSiegesParticipated = 0;
         this.totalWins = 0;
         this.totalLosses = 0;
-        this.participatedSiegeIds = new HashSet<>();
-        this.participatedSieges = new HashSet<>();
-        this.recentPerformances = new ArrayList<>();
-        this.deaths = 0;
+        this.totalAssists = 0;
         this.uniqueSiegeParticipations = new HashSet<>();
-        this.totalDamage = 0;
-        this.lastPerformances = new ArrayList<>();
-        this.siegeStats = new ConcurrentHashMap<>();
     }
 
+    // --- Getters ---
+    public UUID getPlayerUUID() { return playerUUID; } // <<< Getter for UUID
 
-    public void addKills(int kills) {
-        this.kills += kills;
-    }
+    // Update name if needed, e.g., during loading or periodically
+    public void updateName(String name) { this.lastKnownName = name; }
+    public String getLastKnownName() { return lastKnownName; } // <<< Getter for Name
 
-    public void addDeaths(int deaths) {
-        this.deaths += deaths;
-    }
+    // Other getters remain the same...
+    public int getTotalKills() { return totalKills; }
+    public int getTotalDeaths() { return totalDeaths; }
+    public double getTotalDamage() { return totalDamage; }
+    public double getTotalCaptureTime() { return totalCaptureTime; }
+    public int getTotalSiegesParticipated() { return totalSiegesParticipated; }
+    public int getTotalWins() { return totalWins; }
+    public int getTotalLosses() { return totalLosses; }
+    public int getTotalAssists() { return totalAssists; }
 
-    public void addDamage(double damage) {
-        this.totalDamage += damage;
-    }
-
-    public void addWin() {
-        this.totalWins++;
-    }
-
-    public void addLoss() {
-        this.totalLosses++;
-    }
-
-    public String getPlayerName() {
-        return playerName;
-    }
-
-    public int getKills() {
-        return kills;
-    }
-
-    public int getDeaths() {
-        return deaths;
-    }
-
-    public double getTotalDamage() {
-        return totalDamage;
-    }
-
-    public ArrayList<SiegePerformance> getLastPerformances() {
-        return lastPerformances;
-    }
-
-    public ConcurrentHashMap<Siege, SiegeStats> getSiegeStats() {
-        return siegeStats;
-    }
-
-    public void setTotalSieges(int totalSieges) {
-        this.totalSieges = totalSieges;
-    }
-
-    public int getTotalLosses() {
-        return totalLosses;
-    }
-
-    public int getTotalWins() {
-        return totalWins;
-    }
-
-    public int getTotalSieges() {
-        return totalSieges;
-    }
-
-    public void setTotalWins(int totalWins) {
-        this.totalWins = totalWins;
-    }
-
-    public void setTotalLosses(int totalLosses) {
-        this.totalLosses = totalLosses;
-    }
-    public void addLastPerformance(SiegePerformance performance) {
-        recentPerformances.add(performance);
-        if (recentPerformances.size() > 10) { 
-            recentPerformances.remove(0);
-        }
-    }
-
+    // --- Modifiers ---
+    // Adders remain the same...
+    public void addKills(int kills) { this.totalKills += kills; }
+    public void addDeaths(int deaths) { this.totalDeaths += deaths; }
+    public void addDamage(double damage) { this.totalDamage += damage; }
+    public void addCaptureTime(double capTimeMinutes) { this.totalCaptureTime += capTimeMinutes; }
+    public void addWin() { this.totalWins++; }
+    public void addLoss() { this.totalLosses++; }
+    public void addAssist(int amount) { this.totalAssists += amount; }
     public void addSiegeParticipation(String siegeId) {
-        if (uniqueSiegeParticipations.add(siegeId)) { 
-            totalSieges++;
+        if (uniqueSiegeParticipations.add(siegeId)) {
+            this.totalSiegesParticipated++;
         }
     }
 
-    public boolean hasParticipatedInSiege(String siegeId) {
-        return uniqueSiegeParticipations.contains(siegeId);
-    }
-    public double getWinLossRatio() {
-        return (wins + losses == 0) ? 0 : (double) wins / (wins + losses);
-    }
+    // --- Calculated Getters ---
+    // (No changes needed here)
+    public double getKillDeathRatio() { /* ... */ return (totalDeaths==0)?totalKills:((double)totalKills/totalDeaths); }
+    public double getKdaRatio() { /* ... */ return (totalDeaths==0)?(totalKills+totalAssists):((double)(totalKills+totalAssists)/totalDeaths); }
+    public double getWinLossRatio() { /* ... */ int tg = totalWins+totalLosses; return (tg==0)?0.0:((double)totalWins/tg); }
 
-    public double getAverageDamage() {
-        return (totalDamage == 0) ? 0 : totalDamage / (kills + deaths);
-    }
+    // --- Setters (for loading) ---
+    // Setters remain the same...
+    public void setTotalKills(int totalKills) { this.totalKills = totalKills; }
+    public void setTotalDeaths(int totalDeaths) { this.totalDeaths = totalDeaths; }
+    public void setTotalDamage(double totalDamage) { this.totalDamage = totalDamage; }
+    public void setTotalCaptureTime(double totalCaptureTime) { this.totalCaptureTime = totalCaptureTime; }
+    public void setTotalSiegesParticipated(int totalSiegesParticipated) { this.totalSiegesParticipated = totalSiegesParticipated; }
+    public void setTotalWins(int totalWins) { this.totalWins = totalWins; }
+    public void setTotalLosses(int totalLosses) { this.totalLosses = totalLosses; }
+    public void setTotalAssists(int totalAssists) { this.totalAssists = totalAssists; }
 }
