@@ -1,300 +1,514 @@
 package com.mimsswstats;
 
-import com.gmail.goosius.siegewar.objects.Siege;
-import com.mimsswstats.PlayerStats;
-import com.mimsswstats.SiegeStatsPlugin;
+// Adventure API Imports (Chat Components)
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences; // Not strictly needed here if fetched from plugin, but good for context
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextDecoration;
+
+// Bukkit API Imports
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
-import java.util.List;
+// Java Util Imports
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class SiegeStatsCommand implements CommandExecutor {
     private final SiegeStatsPlugin plugin;
+    private final SiegeStatsManager statsManager;
+    private final BukkitAudiences adventure; // Adventure provider
 
+    // --- State Management for Siege Pagination ---
+    private static class SiegePageView {
+        final String siegeId;
+        // Store the sorted list directly (Map Entry Key is UUID)
+        final List<Map.Entry<UUID, SiegeStats.ParticipantMetrics>> sortedParticipants;
+        int currentPage;
+        final int totalPages;
+        final int playersPerPage;
 
+        // Constructor takes the already sorted list
+        SiegePageView(String siegeId, List<Map.Entry<UUID, SiegeStats.ParticipantMetrics>> sortedParticipants, int playersPerPage) {
+            this.siegeId = siegeId;
+            // Ensure the passed list is not null, even if empty
+            this.sortedParticipants = (sortedParticipants != null) ? sortedParticipants : Collections.emptyList();
+            this.currentPage = 1;
+            this.playersPerPage = playersPerPage;
+            // Calculate total pages based on the size of the sorted list
+            this.totalPages = Math.max(1, (int) Math.ceil((double) this.sortedParticipants.size() / playersPerPage));
+        }
+    }
+    // Player UUID -> Current Siege Page View State
+    private final Map<UUID, SiegePageView> playerSiegeViews = new ConcurrentHashMap<>();
+    private final int PLAYERS_PER_PAGE = 7; // Players displayed per page
+    // --- End State Management ---
+
+    // Constructor
     public SiegeStatsCommand(SiegeStatsPlugin plugin) {
         this.plugin = plugin;
+        this.statsManager = plugin.getStatsManager();
+        this.adventure = plugin.adventure(); // Get Adventure provider from main plugin class
     }
-
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (label.equalsIgnoreCase("siegestats")) {
-            if (args.length == 0) {
-                sender.sendMessage("§6§l══════ SiegeStats Commands ══════");
-                sender.sendMessage("§e• §f/siegestats player <name> §7- View player's stats");
-                sender.sendMessage("§e• §f/siegestats top <kills/damage/deaths> [count] §7- View top players");
-                sender.sendMessage("§e• §f/siegestats siege <townname> [number] §7- View siege stats");
-                if (sender.isOp()) {
-                    sender.sendMessage("§e• §f/siegestats reset §7- Reset all stats (OP only)");
-                }
-                return true;
-            }
-
-            switch (args[0].toLowerCase()) {
-                case "player":
-                    handlePlayerStats(sender, args);
-                    break;
-                case "top":
-                    handleTopPlayers(sender, args);
-                    break;
-                case "siege":
-                    handleSiegeStats(sender, args);
-                    break;
-                case "reset":
-                    handleReset(sender);
-                    break;
-                default:
-                    sender.sendMessage("§cUnknown subcommand. Use /siegestats for help.");
-            }
+        if (!cmd.getName().equalsIgnoreCase("siegestats")) {
+            return false;
         }
-        if (args[0].equalsIgnoreCase("debug")) {
-            if (!sender.isOp()) {
-                sender.sendMessage("§cThis command is only for operators.");
-                return true;
-            }
 
-            if (args.length < 2) {
-                sender.sendMessage("§cUsage: /siegestats debug <check/clear>");
-                return true;
-            }
-
-            switch (args[1].toLowerCase()) {
-                case "check":
-                    plugin.getStatsManager().debugActiveSieges(sender);
-                    break;
-                case "clear":
-                    plugin.getStatsManager().resetAllStats();
-                    sender.sendMessage("§aAll stats have been reset.");
-                    break;
-                default:
-                    sender.sendMessage("§cUnknown debug command.");
-            }
+        if (args.length == 0) {
+            sendHelpMessage(sender);
             return true;
         }
+
+        // Route subcommands
+        String subCommand = args[0].toLowerCase();
+        switch (subCommand) {
+            case "player":
+            case "p":
+                handlePlayerStats(sender, args);
+                break;
+            case "top":
+                handleTopPlayers(sender, args);
+                break;
+            case "siege":
+            case "s":
+                handleSiegeStats(sender, args); // Initial call for page 1
+                break;
+            case "move":
+                handleSiegeMove(sender, args); // Handles pagination clicks
+                break;
+            case "reset":
+                handleReset(sender, args);
+                break;
+            case "debug":
+                handleDebug(sender, args);
+                break;
+            default:
+                sender.sendMessage("§cUnknown subcommand '" + args[0] + "'. Use /ss for help.");
+        }
         return true;
-
     }
 
+    // --- Command Handlers ---
 
-    public void handlePlayerStats(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage("§c/siegestats player <name>");
-            return;
+    private void sendHelpMessage(CommandSender sender){
+        // Using legacy codes here is acceptable for simple help text
+        sender.sendMessage("§6§l══════ SiegeStats Commands (/ss) ══════");
+        sender.sendMessage("§e• §f/ss player <name> §7- View player's global stats");
+        sender.sendMessage("§e• §f/ss top <kills|dmg|deaths|assists|kda|captime> [count] §7- Top players");
+        sender.sendMessage("§e• §f/ss siege <town> [number] §7- View specific siege stats (Paginated)");
+        if (sender.hasPermission("siegestats.admin")) {
+            sender.sendMessage("§cAdmin Commands:");
+            sender.sendMessage("§e• §f/ss reset §7- Reset ALL stats");
+            sender.sendMessage("§e• §f/ss debug <check|load|save> §7- Debug commands");
         }
+        sender.sendMessage("§6§l═══════════════════════════════════");
+    }
 
+    private void handlePlayerStats(CommandSender sender, String[] args) {
+        if (args.length < 2) { sender.sendMessage("§cUsage: /ss player <name>"); return; }
         String playerName = args[1];
-        PlayerStats playerStats = plugin.getStatsManager().getPlayerStats(playerName);
+        plugin.getLogger().info("[DEBUG] handlePlayerStats: Looking up stats for '" + playerName + "'");
 
-        if (playerStats == null) {
-            sender.sendMessage("§c✖ Player " + playerName + " not found.");
+        PlayerStats playerStats = statsManager.getPlayerStatsByName(playerName);
+        String displayName = (playerStats != null) ? playerStats.getLastKnownName() : playerName;
+
+        if (playerStats == null || playerStats.getTotalSiegesParticipated() == 0) {
+            sender.sendMessage("§c✖ Player " + displayName + " not found or has no recorded siege participation.");
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Player '" + displayName + "' not found or no participation.");
+            return;
+        }
+        plugin.getLogger().info("[DEBUG] handlePlayerStats: Found stats for '" + displayName + "'");
+
+        // Calculate stats safely
+        double kdRatio = 0, kdaRatio = 0, winRatePercent = 0;
+        try {
+            kdRatio = playerStats.getKillDeathRatio();
+            kdaRatio = playerStats.getKdaRatio();
+            winRatePercent = playerStats.getWinLossRatio() * 100.0;
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Calculated ratios.");
+        } catch (Exception e) {
+            plugin.getLogger().severe("[DEBUG] handlePlayerStats: Error calculating ratios for " + displayName);
+            sender.sendMessage("§cError calculating stats for this player.");
             return;
         }
 
-        double kdRatio = playerStats.getDeaths() == 0 ?
-                playerStats.getKills() :
-                (double) playerStats.getKills() / playerStats.getDeaths();
+        // Get Audience and send messages
+        Audience audience = adventure.sender(sender);
+        try {
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Header...");
+            audience.sendMessage(Component.text("═ " + displayName + "'s Global Siege Stats ═", NamedTextColor.GOLD, TextDecoration.BOLD));
 
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Combat Header...");
+            audience.sendMessage(Component.text(" Combat:", NamedTextColor.YELLOW));
 
-        double winRate = playerStats.getTotalSieges() == 0 ? 0 :
-                (double) playerStats.getTotalWins() / playerStats.getTotalSieges() * 100;
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending KDA Line...");
+            audience.sendMessage(Component.text()
+                    .append(Component.text("  • ", NamedTextColor.GRAY))
+                    .append(Component.text("K/D/A: ", NamedTextColor.WHITE))
+                    .append(Component.text(playerStats.getTotalKills(), NamedTextColor.GREEN))
+                    .append(Component.text("/", NamedTextColor.GRAY))
+                    .append(Component.text(playerStats.getTotalDeaths(), NamedTextColor.RED))
+                    .append(Component.text("/", NamedTextColor.GRAY))
+                    .append(Component.text(playerStats.getTotalAssists(), NamedTextColor.AQUA))
+            );
 
-        sender.sendMessage("§6§l══════ " + playerName + "'s Siege Stats ══════");
-        sender.sendMessage("§e⚔ Combat Statistics:");
-        sender.sendMessage("  §7• §fKills: §a" + playerStats.getKills());
-        sender.sendMessage("  §7• §fDeaths: §c" + playerStats.getDeaths());
-        sender.sendMessage("  §7• §fK/D Ratio: §e" + String.format("%.2f", kdRatio));
-        sender.sendMessage("  §7• §fTotal Damage: §6" + String.format("%.1f", playerStats.getTotalDamage()));
-        sender.sendMessage("");
-        sender.sendMessage("§e🏰 Siege Participation:");
-        sender.sendMessage("  §7• §fTotal Sieges: §b" + playerStats.getTotalSieges());
-        sender.sendMessage("  §7• §fVictories: §a" + playerStats.getTotalWins());
-        sender.sendMessage("  §7• §fDefeats: §c" + playerStats.getTotalLosses());
-        sender.sendMessage("  §7• §fWin Rate: §e" + String.format("%.1f", winRate) + "%");
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Ratio Line...");
+            audience.sendMessage(Component.text()
+                    .append(Component.text("  • ", NamedTextColor.GRAY))
+                    .append(Component.text("K/D Ratio: ", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.2f", kdRatio), NamedTextColor.YELLOW))
+                    .append(Component.text(" | ", NamedTextColor.GRAY))
+                    .append(Component.text("KDA Ratio: ", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.2f", kdaRatio), NamedTextColor.YELLOW))
+            );
+
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Damage Line...");
+            audience.sendMessage(Component.text()
+                    .append(Component.text("  • ", NamedTextColor.GRAY))
+                    .append(Component.text("Damage Dealt: ", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.1f", playerStats.getTotalDamage()), NamedTextColor.GOLD))
+            );
+
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Spacer...");
+            audience.sendMessage(Component.text(" ")); // Spacer
+
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Sieges Header...");
+            audience.sendMessage(Component.text(" Sieges:", NamedTextColor.YELLOW));
+
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Participation Line...");
+            audience.sendMessage(Component.text()
+                    .append(Component.text("  • ", NamedTextColor.GRAY))
+                    .append(Component.text("Participated: ", NamedTextColor.WHITE))
+                    .append(Component.text(playerStats.getTotalSiegesParticipated(), NamedTextColor.AQUA))
+                    .append(Component.text(" | ", NamedTextColor.GRAY))
+                    .append(Component.text("Wins: ", NamedTextColor.WHITE))
+                    .append(Component.text(playerStats.getTotalWins(), NamedTextColor.GREEN))
+                    .append(Component.text(" | ", NamedTextColor.GRAY))
+                    .append(Component.text("Losses: ", NamedTextColor.WHITE))
+                    .append(Component.text(playerStats.getTotalLosses(), NamedTextColor.RED))
+                    .append(Component.text(String.format(" (Rate: %.1f%%)", winRatePercent), NamedTextColor.YELLOW))
+            );
+
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Capture Time Line...");
+            audience.sendMessage(Component.text()
+                    .append(Component.text("  • ", NamedTextColor.GRAY))
+                    .append(Component.text("Banner Control Time: ", NamedTextColor.WHITE))
+                    .append(Component.text(String.format("%.2fm", playerStats.getTotalCaptureTime()), NamedTextColor.LIGHT_PURPLE))
+            );
+
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Sending Footer...");
+            audience.sendMessage(Component.text("═══════════════════════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD));
+            plugin.getLogger().info("[DEBUG] handlePlayerStats: Finished sending all messages.");
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("[DEBUG] handlePlayerStats: Error sending message components for " + displayName);
+            sender.sendMessage("§cAn error occurred while displaying stats.");
+        }
     }
+
+    // Handles the initial /ss siege command and displays page 1
     private void handleSiegeStats(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage("§c/siegestats siege <townname> [number]");
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("This command must be run by a player to support pagination.");
+            // Consider adding non-paginated console output here if desired
             return;
         }
+        Player player = (Player) sender;
+        Audience audience = adventure.player(player); // Get audience for player
 
+        if (args.length < 2) {
+            audience.sendMessage(Component.text("Usage: /ss siege <townname> [number]", NamedTextColor.RED));
+            return;
+        }
         String townName = args[1].toLowerCase();
-        SiegeStatsManager statsManager = plugin.getStatsManager();
-
-        sender.sendMessage("§7[Debug] Searching for siege data for town: " + townName);
-
-        Integer siegeCount = statsManager.getTownSiegeCount(townName);
-        sender.sendMessage("§7[Debug] Town siege count: " + (siegeCount != null ? siegeCount : "none"));
-
         int siegeNumber;
         if (args.length >= 3) {
             try {
                 siegeNumber = Integer.parseInt(args[2]);
+                if (siegeNumber <= 0) throw new NumberFormatException();
             } catch (NumberFormatException e) {
-                sender.sendMessage("§c✖ Invalid siege number format");
+                audience.sendMessage(Component.text("✖ Invalid siege number.", NamedTextColor.RED));
                 return;
             }
         } else {
-            siegeNumber = siegeCount != null ? siegeCount : 0;
-        }
-
-        sender.sendMessage("§7[Debug] Looking up siege ID: " + townName + "_" + siegeNumber);
-
-        SiegeStats siegeStats = statsManager.getSiegeStats(townName, siegeNumber);
-
-        if (siegeStats == null) {
-            sender.sendMessage("§c✖ No siege found for " + townName + " #" + siegeNumber);
-            statsManager.debugActiveSieges(sender);
-            return;
-        }
-
-        sender.sendMessage("§6§l══════ Siege of " + townName + " #" + siegeNumber + " ══════");
-
-        ConcurrentHashMap<String, PlayerStats> participants = siegeStats.getParticipantStats();
-        if (participants.isEmpty()) {
-            sender.sendMessage("§7No participants recorded for this siege.");
-            return;
-        }
-
-        sender.sendMessage("§eParticipant Statistics (Sorted by Damage):");
-        participants.entrySet().stream()
-                .filter(entry -> entry.getValue().getTotalDamage() > 0 ||
-                        entry.getValue().getKills() > 0 ||
-                        entry.getValue().getDeaths() > 0)
-                .sorted((e1, e2) -> Double.compare(e2.getValue().getTotalDamage(),
-                        e1.getValue().getTotalDamage()))
-                .forEach(entry -> {
-                    PlayerStats stats = entry.getValue();
-                    sender.sendMessage(String.format("§f%s §7» §eDMG: §6%.1f §7| §aKills: §f%d §7| §cDeaths: §f%d",
-                            entry.getKey(),
-                            stats.getTotalDamage(),
-                            stats.getKills(),
-                            stats.getDeaths()
-                    ));
-                });
-
-        if (!siegeStats.isActive()) {
-            long duration = System.currentTimeMillis() - siegeStats.getStartTime();
-            String durationStr = String.format("%.1f minutes", duration / (1000.0 * 60));
-            sender.sendMessage("§eSiege Duration: §f" + durationStr);
-        } else {
-            sender.sendMessage("§eSiege Status: §aActive");
-        }
-    }
-    private void showSiegeHistory(CommandSender sender, String[] args) {
-        if(args.length < 2) {
-            sender.sendMessage("§cUsage: /siegestats history <player>");
-            return;
-        }
-
-        PlayerStats stats = plugin.getStatsManager().getPlayerStats(args[1]);
-        List<SiegePerformance> history = stats.getLastPerformances();
-
-        sender.sendMessage("§6§lLast 5 Sieges for " + args[1]);
-        history.stream().limit(5).forEach(perf -> {
-            String result = perf.isWon() ? "§aWIN" : "§cLOSS";
-            sender.sendMessage(String.format("%s §7- K:%d D:%d DMG:%.1f",
-                    result, perf.getKills(), perf.getDeaths(), perf.getDamage()));
-        });
-    }
-    private void handleReset(CommandSender sender) {
-        if (!sender.isOp()) {
-            sender.sendMessage("§c✖ This command is only available to server operators.");
-            return;
-        }
-
-        plugin.getStatsManager().resetAllStats();
-        sender.sendMessage("§a✔ All siege stats have been reset successfully.");
-
-        plugin.getServer().getOnlinePlayers().forEach(player -> {
-            if (player.isOp() && player != sender) {
-                player.sendMessage("§e[SiegeStats] §7All stats were reset by " + sender.getName());
+            siegeNumber = statsManager.getTownSiegeCount(townName);
+            if (siegeNumber == 0) {
+                audience.sendMessage(Component.text("✖ No sieges recorded for town: " + townName, NamedTextColor.RED));
+                return;
             }
-        });
+            audience.sendMessage(Component.text("(Showing latest siege: #" + siegeNumber + ")", NamedTextColor.GRAY));
+        }
+
+        // Generate Siege ID (still based on name for now)
+        String targetSiegeId = townName + "_" + siegeNumber;
+        SiegeStats siegeStats = statsManager.getSiegeStatsById(targetSiegeId);
+        if (siegeStats == null) {
+            audience.sendMessage(Component.text("✖ Siege data not found for " + townName + " #" + siegeNumber, NamedTextColor.RED));
+            return;
+        }
+
+        // Fetch and sort participants by damage (using UUID keys)
+        ConcurrentHashMap<UUID, SiegeStats.ParticipantMetrics> participants = siegeStats.getParticipantMetrics();
+        List<Map.Entry<UUID, SiegeStats.ParticipantMetrics>> sortedList = participants.entrySet().stream()
+                .sorted(Map.Entry.<UUID, SiegeStats.ParticipantMetrics>comparingByValue(
+                        Comparator.comparingDouble(SiegeStats.ParticipantMetrics::getDamage).reversed()
+                ))
+                .collect(Collectors.toList());
+
+        // Create and store the view state for the player
+        SiegePageView view = new SiegePageView(targetSiegeId, sortedList, PLAYERS_PER_PAGE);
+        playerSiegeViews.put(player.getUniqueId(), view);
+
+        // Display the first page
+        displaySiegePage(player, view); // Pass Player object for audience creation inside
     }
 
+    // Displays a specific page of siege stats to a player
+    private void displaySiegePage(Player player, SiegePageView view) {
+        Audience audience = adventure.player(player); // Get audience for the specific player
+
+        SiegeStats siegeStats = statsManager.getSiegeStatsById(view.siegeId);
+        if (siegeStats == null) {
+            audience.sendMessage(Component.text("Error: Could not retrieve siege data for ID: " + view.siegeId, NamedTextColor.RED));
+            playerSiegeViews.remove(player.getUniqueId());
+            return;
+        }
+
+        String townDisplayName = siegeStats.getTownName();
+        int siegeNumber = siegeStats.getSiegeNumber();
+
+        // --- Header ---
+        audience.sendMessage(Component.text("═ Siege of " + townDisplayName + " #" + siegeNumber + " (" + view.siegeId + ") Page " + view.currentPage + "/" + view.totalPages + " ═", NamedTextColor.GOLD, TextDecoration.BOLD));
+        String statusStr = siegeStats.isActive() ? "Active" : "Completed";
+        NamedTextColor statusColor = siegeStats.isActive() ? NamedTextColor.GREEN : NamedTextColor.RED;
+        audience.sendMessage(Component.text("Status: ", NamedTextColor.YELLOW)
+                .append(Component.text(statusStr, statusColor))
+                .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+                .append(Component.text("Duration: ", NamedTextColor.YELLOW))
+                .append(Component.text(String.format("%.1f", siegeStats.getDurationMinutes()) + "m", NamedTextColor.WHITE)));
+        if (!siegeStats.isActive()) {
+            int winner = siegeStats.whoWon();
+            Component winnerComp = switch (winner) {
+                case 1 -> Component.text("ATTACKERS", NamedTextColor.RED, TextDecoration.BOLD);
+                case 2 -> Component.text("DEFENDERS", NamedTextColor.BLUE, TextDecoration.BOLD);
+                default -> Component.text("DRAW/UNKNOWN", NamedTextColor.GRAY);
+            };
+            audience.sendMessage(Component.text("Winner: ", NamedTextColor.YELLOW).append(winnerComp));
+        }
+
+        // --- Participants ---
+        int totalParticipants = view.sortedParticipants.size();
+        audience.sendMessage(Component.text("--- Participants (" + totalParticipants + " - Sorted by Damage) ---", NamedTextColor.GOLD));
+
+        int startIndex = (view.currentPage - 1) * view.playersPerPage;
+        int endIndex = Math.min(startIndex + view.playersPerPage, totalParticipants);
+
+        if (totalParticipants == 0) {
+            audience.sendMessage(Component.text("No participant stats recorded for this siege.", NamedTextColor.GRAY));
+        } else if (startIndex >= totalParticipants) {
+            audience.sendMessage(Component.text("No participants on this page.", NamedTextColor.GRAY)); // Should only happen if page > totalPages
+        }
+        else {
+            for (int i = startIndex; i < endIndex; i++) {
+                Map.Entry<UUID, SiegeStats.ParticipantMetrics> entry = view.sortedParticipants.get(i);
+                UUID playerUUID = entry.getKey();
+                SiegeStats.ParticipantMetrics metrics = entry.getValue();
+                String playerName = Bukkit.getOfflinePlayer(playerUUID).getName();
+                if (playerName == null) playerName = "Unknown (" + playerUUID.toString().substring(0, 6) + ")";
+
+                double kda = (metrics.getDeaths() == 0) ? (metrics.getKills() + metrics.getAssists()) : ((double) (metrics.getKills() + metrics.getAssists()) / metrics.getDeaths());
+
+                // Multi-line Player Format
+                audience.sendMessage(Component.text(playerName + ":", NamedTextColor.WHITE));
+                audience.sendMessage(Component.text()
+                        .append(Component.text("  • ", NamedTextColor.GRAY))
+                        .append(Component.text("K/D/A: ", NamedTextColor.WHITE))
+                        .append(Component.text(metrics.getKills(), NamedTextColor.GREEN))
+                        .append(Component.text("/", NamedTextColor.GRAY))
+                        .append(Component.text(metrics.getDeaths(), NamedTextColor.RED))
+                        .append(Component.text("/", NamedTextColor.GRAY))
+                        .append(Component.text(metrics.getAssists(), NamedTextColor.AQUA))
+                        .append(Component.text(String.format(" (KDA: %.2f)", kda), NamedTextColor.YELLOW))
+                );
+                audience.sendMessage(Component.text()
+                        .append(Component.text("  • ", NamedTextColor.GRAY))
+                        .append(Component.text("Damage: ", NamedTextColor.WHITE))
+                        .append(Component.text(String.format("%.1f", metrics.getDamage()), NamedTextColor.GOLD))
+                );
+                audience.sendMessage(Component.text()
+                        .append(Component.text("  • ", NamedTextColor.GRAY))
+                        .append(Component.text("Capture Time: ", NamedTextColor.WHITE))
+                        .append(Component.text(String.format("%.2fm", metrics.getControlTime()), NamedTextColor.LIGHT_PURPLE))
+                );
+                // Separator between players, but not after the last one on the page
+                if (i < endIndex - 1) {
+                    audience.sendMessage(Component.text("-------------------------", NamedTextColor.DARK_GRAY));
+                }
+            }
+        }
+
+        // --- Pagination Footer ---
+        TextComponent.Builder footer = Component.text();
+        footer.append(Component.text("═══ ", NamedTextColor.DARK_GRAY));
+        if (view.currentPage > 1) {
+            footer.append(
+                    Component.text("[<< Back]", Style.style(NamedTextColor.RED, TextDecoration.BOLD))
+                            .clickEvent(ClickEvent.runCommand("/ss move back"))
+                            .hoverEvent(Component.text("Go to Page " + (view.currentPage - 1)))
+            );
+        } else {
+            footer.append(Component.text("[<< Back]", Style.style(NamedTextColor.DARK_GRAY))); // Disabled look
+        }
+
+        footer.append(Component.text(" Page " + view.currentPage + "/" + view.totalPages + " ", NamedTextColor.GRAY));
+
+        if (view.currentPage < view.totalPages) {
+            footer.append(
+                    Component.text("[Next >>]", Style.style(NamedTextColor.GREEN, TextDecoration.BOLD))
+                            .clickEvent(ClickEvent.runCommand("/ss move next"))
+                            .hoverEvent(Component.text("Go to Page " + (view.currentPage + 1)))
+            );
+        } else {
+            footer.append(Component.text("[Next >>]", Style.style(NamedTextColor.DARK_GRAY))); // Disabled look
+        }
+        footer.append(Component.text(" ═══", NamedTextColor.DARK_GRAY));
+
+        audience.sendMessage(footer.build());
+    }
+
+    // Handles /ss move <back|next>
+    private void handleSiegeMove(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("Pagination commands must be run by a player.");
+            return;
+        }
+        Player player = (Player) sender;
+        Audience audience = adventure.player(player); // Get audience
+        UUID playerUUID = player.getUniqueId();
+
+        if (args.length < 2) {
+            audience.sendMessage(Component.text("Usage: /ss move <back|next>", NamedTextColor.RED));
+            return;
+        }
+
+        SiegePageView currentView = playerSiegeViews.get(playerUUID);
+        if (currentView == null) {
+            audience.sendMessage(Component.text("Your siege view has expired. Please run '/ss siege <town> [num]' again.", NamedTextColor.RED));
+            return;
+        }
+
+        String direction = args[1].toLowerCase();
+        boolean changed = false;
+        if (direction.equals("next")) {
+            if (currentView.currentPage < currentView.totalPages) {
+                currentView.currentPage++;
+                changed = true;
+            } else {
+                audience.sendMessage(Component.text("You are already on the last page.", NamedTextColor.YELLOW));
+            }
+        } else if (direction.equals("back")) {
+            if (currentView.currentPage > 1) {
+                currentView.currentPage--;
+                changed = true;
+            } else {
+                audience.sendMessage(Component.text("You are already on the first page.", NamedTextColor.YELLOW));
+            }
+        } else {
+            audience.sendMessage(Component.text("Invalid direction. Use 'next' or 'back'.", NamedTextColor.RED));
+        }
+
+        if (changed) {
+            displaySiegePage(player, currentView); // Display the updated page
+            // No need to re-put view state as we modified the object directly
+        }
+    }
+
+    // Handles /ss top ...
     private void handleTopPlayers(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage("§c/siegestats top <kills/damage/deaths> [count]");
+            sender.sendMessage("§cUsage: /ss top <kills|dmg|deaths|assists|kda|captime> [count]");
             return;
         }
-
         String statType = args[1].toLowerCase();
-        int topCount = 10; 
-
+        int topCount = 10;
         if (args.length >= 3) {
-            try {
-                topCount = Integer.parseInt(args[2]);
-                if (topCount < 1) {
-                    sender.sendMessage("§cCount must be greater than 0.");
-                    return;
-                }
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§cInvalid number format.");
-                return;
-            }
+            try { topCount = Integer.parseInt(args[2]); if (topCount < 1 || topCount > 50) topCount = 10; }
+            catch (NumberFormatException e) { sender.sendMessage("§cInvalid count."); return; }
         }
 
-        SiegeStatsManager statsManager = plugin.getStatsManager();
-        ConcurrentHashMap<String, PlayerStats> playerStats = statsManager.getPlayerStats();
+        ConcurrentHashMap<UUID, PlayerStats> allPlayerStats = statsManager.getAllPlayerStats();
 
-        String headerTitle = switch (statType) {
-            case "kills" -> "Kills";
-            case "damage" -> "Damage";
-            case "deaths" -> "Deaths";
-            default -> null;
-        };
+        Comparator<PlayerStats> comparator;
+        java.util.function.Function<PlayerStats, String> valueExtractor;
+        String headerTitle;
 
-        if (headerTitle == null) {
-            sender.sendMessage("§cInvalid stat type. Use kills, damage, or deaths.");
-            return;
+        // Comparators remain the same
+        switch (statType) {
+            case "kills": headerTitle = "Kills"; comparator = Comparator.comparingInt(PlayerStats::getTotalKills).reversed(); valueExtractor = stats -> ""+stats.getTotalKills(); break;
+            case "damage": case "dmg": headerTitle = "Damage"; comparator = Comparator.comparingDouble(PlayerStats::getTotalDamage).reversed(); valueExtractor = stats -> String.format("%.1f", stats.getTotalDamage()); break;
+            case "deaths": headerTitle = "Deaths"; comparator = Comparator.comparingInt(PlayerStats::getTotalDeaths).reversed(); valueExtractor = stats -> ""+stats.getTotalDeaths(); break;
+            case "assists": headerTitle = "Assists"; comparator = Comparator.comparingInt(PlayerStats::getTotalAssists).reversed(); valueExtractor = stats -> ""+stats.getTotalAssists(); break;
+            case "kda": headerTitle = "KDA"; comparator = Comparator.comparingDouble(PlayerStats::getKdaRatio).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getKdaRatio()); break;
+            case "captime": headerTitle = "CapTime"; comparator = Comparator.comparingDouble(PlayerStats::getTotalCaptureTime).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getTotalCaptureTime()) + "m"; break;
+            default: sender.sendMessage("§cInvalid stat type."); return;
         }
 
-        sender.sendMessage("§6§l══════ Top " + topCount + " Players by " + headerTitle + " ══════");
+        sender.sendMessage("§6§l═ Top " + topCount + " Players by " + headerTitle + " ═");
 
-        List<PlayerStats> sortedStats = playerStats.values().stream()
-                .filter(stats -> {
-                    return switch (statType) {
-                        case "kills" -> stats.getKills() > 0;
-                        case "damage" -> stats.getTotalDamage() > 0;
-                        case "deaths" -> stats.getDeaths() > 0;
-                        default -> false;
-                    };
-                })
-                .sorted((s1, s2) -> {
-                    return switch (statType) {
-                        case "kills" -> Integer.compare(s2.getKills(), s1.getKills());
-                        case "damage" -> Double.compare(s2.getTotalDamage(), s1.getTotalDamage());
-                        case "deaths" -> Integer.compare(s2.getDeaths(), s1.getDeaths());
-                        default -> 0;
-                    };
-                })
+        List<PlayerStats> sortedStats = allPlayerStats.values().stream()
+                .filter(stats -> stats.getTotalSiegesParticipated() > 0) // Filter out players with 0 participation
+                .sorted(comparator)
                 .limit(topCount)
                 .collect(Collectors.toList());
 
-        // Display results
-        if (sortedStats.isEmpty()) {
-            sender.sendMessage("§7No players found with " + headerTitle.toLowerCase() + " greater than 0.");
-            return;
+        if (sortedStats.isEmpty()) { sender.sendMessage("§7No players found with recorded stats."); }
+        else {
+            for (int i = 0; i < sortedStats.size(); i++) {
+                PlayerStats stats = sortedStats.get(i);
+                // Use last known name for display
+                sender.sendMessage(String.format("§e%d. §f%s §7» §6%s",
+                        i + 1, stats.getLastKnownName(), valueExtractor.apply(stats)
+                ));
+            }
         }
+        sender.sendMessage("§6§l═══════════════════════════");
+    }
 
-        for (int i = 0; i < sortedStats.size(); i++) {
-            PlayerStats stats = sortedStats.get(i);
-            String value = switch (statType) {
-                case "kills" -> String.valueOf(stats.getKills());
-                case "damage" -> String.format("%.1f", stats.getTotalDamage());
-                case "deaths" -> String.valueOf(stats.getDeaths());
-                default -> "0";
-            };
+    // Handles /ss reset
+    private void handleReset(CommandSender sender, String[] args) { // Added args for consistency
+        if (!sender.hasPermission("siegestats.admin")) {
+            sender.sendMessage("§cYou do not have permission."); return;
+        }
+        // Potentially add confirmation later if desired
+        statsManager.resetAllStats();
+        sender.sendMessage("§a✔ All siege stats have been reset.");
+        // Broadcast using Adventure
+        Audience broadcastAudience = adventure.permission("siegestats.admin");
+        broadcastAudience.sendMessage(Component.text("[SiegeStats] All stats were reset by " + sender.getName(), NamedTextColor.YELLOW));
+    }
 
-            sender.sendMessage(String.format("§e%d. §f%s §7» §6%s %s",
-                    i + 1,
-                    stats.getPlayerName(),
-                    value,
-                    statType.equals("damage") ? "damage" : ""));
+    // Handles /ss debug ...
+    private void handleDebug(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("siegestats.admin")) { /* ... */ return; }
+        if (args.length < 2) { sender.sendMessage("§cUsage: /ss debug <check|load|save>"); return; }
+        switch (args[1].toLowerCase()) {
+            case "check": statsManager.debugDumpStats(sender); break;
+            case "load": statsManager.loadStats(); sender.sendMessage("§aReloaded stats."); break;
+            case "save": statsManager.saveStats(); sender.sendMessage("§aSaved stats."); break;
+            default: sender.sendMessage("§cUnknown debug command.");
         }
     }
-}
+
+} // End SiegeStatsCommand class
