@@ -2,18 +2,18 @@ package com.mimsswstats;
 
 import com.gmail.goosius.siegewar.SiegeController;
 import com.gmail.goosius.siegewar.enums.SiegeSide;
+// Removed BannerControlSessionStartedEvent import (not used here)
 import com.gmail.goosius.siegewar.objects.BattleSession;
 import com.gmail.goosius.siegewar.objects.Siege;
 import com.gmail.goosius.siegewar.utils.SiegeWarDistanceUtil;
-import com.mimsswstats.SiegeStatsPlugin;
-import com.palmergames.bukkit.towny.TownyUniverse;
-import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
-import com.palmergames.bukkit.towny.object.Resident;
-import com.palmergames.bukkit.towny.object.Town;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile; // Keep Projectile import
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority; // Keep EventPriority import
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.projectiles.ProjectileSource; // Keep ProjectileSource import
+
 
 public class PlayerDamageListener implements Listener {
     private final SiegeStatsPlugin plugin;
@@ -22,69 +22,82 @@ public class PlayerDamageListener implements Listener {
         this.plugin = plugin;
     }
 
-    private static Siege findNearbyActiveSiegeWherePlayerIsParticipant(Player deadPlayer, Town deadResidentTown) {
-        Siege nearestSiege = null;
-        double smallestDistanceToSiege = 0;
-
+    private static Siege findNearbyActiveSiegeWherePlayerIsParticipant(Player player) {
+        // ... (existing helper method) ...
         for (Siege candidateSiege : SiegeController.getSieges()) {
-
-            if (!candidateSiege.getStatus().isActive())
-                continue;
-
-            if (!SiegeWarDistanceUtil.isInSiegeZone(deadPlayer, candidateSiege))
-                continue;
-
-            if (SiegeSide.getPlayerSiegeSide(candidateSiege, deadPlayer) == SiegeSide.NOBODY)
-                continue;
-
-            double candidateSiegeDistanceToPlayer = deadPlayer.getLocation().distance(candidateSiege.getFlagLocation());
-            if (nearestSiege == null || candidateSiegeDistanceToPlayer < smallestDistanceToSiege) {
-                nearestSiege = candidateSiege;
-                smallestDistanceToSiege = candidateSiegeDistanceToPlayer;
+            if (candidateSiege != null && candidateSiege.getStatus().isActive() &&
+                    SiegeSide.getPlayerSiegeSide(candidateSiege, player) != SiegeSide.NOBODY &&
+                    SiegeWarDistanceUtil.isInSiegeZone(player, candidateSiege)) {
+                return candidateSiege;
             }
         }
-        return nearestSiege;
+        return null;
     }
-    @EventHandler
+
+    // Listen with MONITOR priority to get final damage value
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDamage(EntityDamageByEntityEvent event) {
-        try {
-            if (!(event.getDamager() instanceof Player) || !(event.getEntity() instanceof Player)) {
-                return;
+        if (!(event.getEntity() instanceof Player damaged)) {
+            return; // Victim is not a player
+        }
+
+        Player damager = null;
+        // Determine damager if it's a player or a projectile shot by a player
+        if (event.getDamager() instanceof Player) {
+            damager = (Player) event.getDamager();
+        } else if (event.getDamager() instanceof Projectile) {
+            Projectile projectile = (Projectile) event.getDamager();
+            ProjectileSource shooter = projectile.getShooter();
+            if (shooter instanceof Player) {
+                damager = (Player) shooter;
             }
+        }
 
-            Player damager = (Player) event.getDamager();
-            Player damaged = (Player) event.getEntity();
+        if (damager == null || damager == damaged) {
+            return; // Damager is not a player or it's self-damage
+        }
 
-            if (!BattleSession.getBattleSession().isActive()) {
-                return;
-            }
+        if (!BattleSession.getBattleSession().isActive()) {
+            return; // Only track during active battle sessions
+        }
 
-            Resident damagedResident = TownyUniverse.getInstance().getResident(damaged.getName());
-            Town damagedTown = damagedResident.getTown();
-            Siege siege = findNearbyActiveSiegeWherePlayerIsParticipant(damaged, damagedTown);
+        // Find siege based on the damaged player
+        Siege siege = findNearbyActiveSiegeWherePlayerIsParticipant(damaged);
 
-            if (siege != null) {
-                String siegeId = siege.getTown().getName().toLowerCase() + "_" +
-                        plugin.getStatsManager().getTownSiegeCount(siege.getTown().getName().toLowerCase());
-
-                plugin.getLogger().info("[DEBUG] Processing damage in siege: " + siegeId);
-
-                SiegeSide damagerSide = SiegeSide.getPlayerSiegeSide(siege, damager);
-                SiegeSide damagedSide = SiegeSide.getPlayerSiegeSide(siege, damaged);
-
-                if (damagerSide != damagedSide && damagerSide != SiegeSide.NOBODY && damagedSide != SiegeSide.NOBODY) {
-                    double finalDamage = event.getFinalDamage();
-
-                    plugin.getLogger().info("[DEBUG] Recording damage: " + damager.getName() +
-                            " dealt " + finalDamage + " damage to " + damaged.getName());
-
-                    plugin.getStatsManager().recordSiegeAction(siegeId, damager.getName(), 0, 0, finalDamage);
-
-                    plugin.getStatsManager().addSiegeParticipant(siege, damaged);
-                    plugin.getStatsManager().addSiegeParticipant(siege, damager);
+        if (siege != null) {
+            String siegeId = plugin.getSiegeListener().getActiveSiegeId(siege);
+            if (siegeId == null) {
+                // Try fallback if ID missing (race condition)
+                SiegeStats completedStats = plugin.getStatsManager().findCompletedSiegeStats(siege);
+                if (completedStats != null) siegeId = completedStats.getSiegeId();
+                else {
+                    plugin.getLogger().warning("[PlayerDamageListener] Damage involving " + damaged.getName() + " in non-tracked siege? Town: " + siege.getTown().getName());
+                    return;
                 }
             }
-        } catch (NotRegisteredException e) {
-            plugin.getLogger().warning("Error processing damage event: " + e.getMessage());
+
+            // Check sides
+            SiegeSide damagerSide = SiegeSide.getPlayerSiegeSide(siege, damager);
+            SiegeSide damagedSide = SiegeSide.getPlayerSiegeSide(siege, damaged);
+
+            // Only record damage and track damagers if they are opponents in the siege
+            if (damagerSide != SiegeSide.NOBODY && damagedSide != SiegeSide.NOBODY && damagerSide != damagedSide) {
+                double finalDamage = event.getFinalDamage();
+                plugin.getLogger().fine("[DEBUG] Recording damage in siege " + siegeId + ": " + damager.getName() +
+                        " dealt " + finalDamage + " damage to " + damaged.getName());
+
+                // Record the damage action using UUIDs
+                plugin.getStatsManager().recordSiegeAction(siegeId, damager.getUniqueId(), 0, 0, finalDamage, 0.0, 0); // 0 assists here
+
+                // <<< NEW: Track this damage event for potential assists >>>
+                plugin.getStatsManager().addRecentDamager(damaged.getUniqueId(), damager.getUniqueId());
+                plugin.getLogger().finest("[DEBUG] Added damager " + damager.getName() + " for victim " + damaged.getName() + " for assist tracking.");
+
+
+                // Ensure both players are marked as participants (manager handles duplicates)
+                plugin.getStatsManager().addSiegeParticipant(siege, damaged);
+                plugin.getStatsManager().addSiegeParticipant(siege, damager);
+            }
         }
-    }}
+    }
+}
