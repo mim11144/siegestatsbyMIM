@@ -6,3 +6,4 @@ Now released siegestatsbyMIM v1, which moves us from beta state to an actual rel
 - **Worked on all commands and made them look better**
 - **Added a configurable pagination system for siege stats only ( orders the siege stats as pages you can move for the next page or go back )**
 - **fully fixed participation system**
+- **and more!...**
