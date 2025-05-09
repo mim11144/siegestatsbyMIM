@@ -349,7 +349,8 @@ public class SiegeStatsManager {
 
         File parentDir = statsFile.getParentFile();
         if (!parentDir.exists() && !parentDir.mkdirs()) {
-            plugin.getLogger().severe("Could not create data folder: " + parentDir.getPath()); return;
+            plugin.getLogger().severe("Could not create data folder: " + parentDir.getPath());
+ return;
         }
         try (FileWriter fw = new FileWriter(statsFile)) {
             fw.write(root.toJSONString());
@@ -423,10 +424,12 @@ public class SiegeStatsManager {
             if (counters != null) counters.forEach((t, c) -> townSiegeCounter.put((String)t, ((Long)c).intValue()));
             // Load Active Sieges
             JSONObject activeS = (JSONObject) root.get("activeSieges");
-            if (activeS != null) activeS.forEach((id, sD) -> { SiegeStats s = deserializeSiegeStats((String)id, (JSONObject)sD); if (s != null) (s.isActive() ? activeSieges : completedSieges).put((String)id, s); });
+            if (activeS != null) activeS.forEach((id, sD) -> { SiegeStats s = deserializeSiegeStats((String)id, (JSONObject)sD); if (s != null) (s.isActive() ? activeSieges : completedSieges).put((String)id, s);
+ });
             // Load Completed Sieges
             JSONObject completedS = (JSONObject) root.get("completedSieges");
-            if (completedS != null) completedS.forEach((id, sD) -> { SiegeStats s = deserializeSiegeStats((String)id, (JSONObject)sD); if (s != null && !s.isActive()) completedSieges.putIfAbsent((String)id, s); });
+            if (completedS != null) completedS.forEach((id, sD) -> { SiegeStats s = deserializeSiegeStats((String)id, (JSONObject)sD); if (s != null && !s.isActive()) completedSieges.putIfAbsent((String)id, s);
+ });
 
             plugin.getLogger().info("Siege stats loaded successfully (UUID keys).");
         } catch (IOException | ParseException | ClassCastException | NullPointerException e) {
