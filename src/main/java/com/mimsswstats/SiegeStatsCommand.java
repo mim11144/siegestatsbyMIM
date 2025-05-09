@@ -117,7 +117,10 @@ public class SiegeStatsCommand implements CommandExecutor {
     }
 
     private void handlePlayerStats(CommandSender sender, String[] args) {
-        if (args.length < 2) { sender.sendMessage("§cUsage: /ss player <name>"); return; }
+        if (args.length < 2) {
+ sender.sendMessage("§cUsage: /ss player <name>"); 
+return; 
+}
         String playerName = args[1];
         plugin.getLogger().info("[DEBUG] handlePlayerStats: Looking up stats for '" + playerName + "'");
 
@@ -444,7 +447,8 @@ public class SiegeStatsCommand implements CommandExecutor {
         String statType = args[1].toLowerCase();
         int topCount = 10;
         if (args.length >= 3) {
-            try { topCount = Integer.parseInt(args[2]); if (topCount < 1 || topCount > 50) topCount = 10; }
+            try { topCount = Integer.parseInt(args[2]);
+ if (topCount < 1 || topCount > 50) topCount = 10; }
             catch (NumberFormatException e) { sender.sendMessage("§cInvalid count."); return; }
         }
 
@@ -498,7 +502,9 @@ public class SiegeStatsCommand implements CommandExecutor {
                 .limit(topCount)
                 .collect(Collectors.toList());
 
-        if (sortedStats.isEmpty()) { sender.sendMessage("§7No players found with recorded stats."); }
+        if (sortedStats.isEmpty()) {
+ sender.sendMessage("§7No players found with recorded stats."); 
+}
         else {
             for (int i = 0; i < sortedStats.size(); i++) {
                 PlayerStats stats = sortedStats.get(i);
@@ -526,16 +532,27 @@ public class SiegeStatsCommand implements CommandExecutor {
 
     // Handles /ss debug ...
     private void handleDebug(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("siegestats.admin")) { /* ... */ return; }
-        if (args.length < 2) { sender.sendMessage("§cUsage: /ss debug <check|load|save>"); return; }
+        if (!sender.hasPermission("siegestats.admin")) {
+ return; 
+}
+        if (args.length < 2) {
+ sender.sendMessage("§cUsage: /ss debug <check|load|save>");
+ return;
+ }
         switch (args[1].toLowerCase()) {
-            case "check": statsManager.debugDumpStats(sender); 
+            case "check":
+ statsManager.debugDumpStats(sender); 
 break;
-            case "load": statsManager.loadStats(); sender.sendMessage("§aReloaded stats.");
+            case "load": 
+statsManager.loadStats(); 
+sender.sendMessage("§aReloaded stats.");
  break;
-            case "save": statsManager.saveStats(); sender.sendMessage("§aSaved stats."); 
+            case "save": 
+statsManager.saveStats(); 
+sender.sendMessage("§aSaved stats."); 
 break;
-            default: sender.sendMessage("§cUnknown debug command.");
+            default: 
+sender.sendMessage("§cUnknown debug command.");
         }
     }
 
