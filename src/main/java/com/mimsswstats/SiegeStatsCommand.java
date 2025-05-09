@@ -456,12 +456,18 @@ public class SiegeStatsCommand implements CommandExecutor {
 
         // Comparators remain the same
         switch (statType) {
-            case "kills": headerTitle = "Kills"; comparator = Comparator.comparingInt(PlayerStats::getTotalKills).reversed(); valueExtractor = stats -> ""+stats.getTotalKills(); break;
-            case "damage": case "dmg": headerTitle = "Damage"; comparator = Comparator.comparingDouble(PlayerStats::getTotalDamage).reversed(); valueExtractor = stats -> String.format("%.1f", stats.getTotalDamage()); break;
-            case "deaths": headerTitle = "Deaths"; comparator = Comparator.comparingInt(PlayerStats::getTotalDeaths).reversed(); valueExtractor = stats -> ""+stats.getTotalDeaths(); break;
-            case "assists": headerTitle = "Assists"; comparator = Comparator.comparingInt(PlayerStats::getTotalAssists).reversed(); valueExtractor = stats -> ""+stats.getTotalAssists(); break;
-            case "kda": headerTitle = "KDA"; comparator = Comparator.comparingDouble(PlayerStats::getKdaRatio).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getKdaRatio()); break;
-            case "captime": headerTitle = "CapTime"; comparator = Comparator.comparingDouble(PlayerStats::getTotalCaptureTime).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getTotalCaptureTime()) + "m"; break;
+            case "kills": headerTitle = "Kills"; comparator = Comparator.comparingInt(PlayerStats::getTotalKills).reversed(); valueExtractor = stats -> ""+stats.getTotalKills(); 
+break;
+            case "damage": case "dmg": headerTitle = "Damage"; comparator = Comparator.comparingDouble(PlayerStats::getTotalDamage).reversed(); valueExtractor = stats -> String.format("%.1f", stats.getTotalDamage()); 
+break;
+            case "deaths": headerTitle = "Deaths"; comparator = Comparator.comparingInt(PlayerStats::getTotalDeaths).reversed(); valueExtractor = stats -> ""+stats.getTotalDeaths(); 
+break;
+            case "assists": headerTitle = "Assists"; comparator = Comparator.comparingInt(PlayerStats::getTotalAssists).reversed(); valueExtractor = stats -> ""+stats.getTotalAssists(); 
+break;
+            case "kda": headerTitle = "KDA"; comparator = Comparator.comparingDouble(PlayerStats::getKdaRatio).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getKdaRatio()); 
+break;
+            case "captime": headerTitle = "CapTime"; comparator = Comparator.comparingDouble(PlayerStats::getTotalCaptureTime).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getTotalCaptureTime()) + "m"; 
+break;
             default: sender.sendMessage("§cInvalid stat type."); return;
         }
 
@@ -504,9 +510,12 @@ public class SiegeStatsCommand implements CommandExecutor {
         if (!sender.hasPermission("siegestats.admin")) { /* ... */ return; }
         if (args.length < 2) { sender.sendMessage("§cUsage: /ss debug <check|load|save>"); return; }
         switch (args[1].toLowerCase()) {
-            case "check": statsManager.debugDumpStats(sender); break;
-            case "load": statsManager.loadStats(); sender.sendMessage("§aReloaded stats."); break;
-            case "save": statsManager.saveStats(); sender.sendMessage("§aSaved stats."); break;
+            case "check": statsManager.debugDumpStats(sender); 
+break;
+            case "load": statsManager.loadStats(); sender.sendMessage("§aReloaded stats.");
+ break;
+            case "save": statsManager.saveStats(); sender.sendMessage("§aSaved stats."); 
+break;
             default: sender.sendMessage("§cUnknown debug command.");
         }
     }
