@@ -449,7 +449,8 @@ return;
         if (args.length >= 3) {
             try { topCount = Integer.parseInt(args[2]);
  if (topCount < 1 || topCount > 50) topCount = 10; }
-            catch (NumberFormatException e) { sender.sendMessage("§cInvalid count."); return; }
+            catch (NumberFormatException e) { sender.sendMessage("§cInvalid count.");
+ return; }
         }
 
         ConcurrentHashMap<UUID, PlayerStats> allPlayerStats = statsManager.getAllPlayerStats();
@@ -520,7 +521,8 @@ return;
     // Handles /ss reset
     private void handleReset(CommandSender sender, String[] args) { // Added args for consistency
         if (!sender.hasPermission("siegestats.admin")) {
-            sender.sendMessage("§cYou do not have permission."); return;
+            sender.sendMessage("§cYou do not have permission."); 
+return;
         }
         // Potentially add confirmation later if desired
         statsManager.resetAllStats();
