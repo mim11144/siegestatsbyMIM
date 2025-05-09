@@ -71,7 +71,8 @@ public class PlayerStats {
     // (No changes needed here)
     public double getKillDeathRatio() { /* ... */ return (totalDeaths==0)?totalKills:((double)totalKills/totalDeaths); }
     public double getKdaRatio() { /* ... */ return (totalDeaths==0)?(totalKills+totalAssists):((double)(totalKills+totalAssists)/totalDeaths); }
-    public double getWinLossRatio() { /* ... */ int tg = totalWins+totalLosses; return (tg==0)?0.0:((double)totalWins/tg); }
+    public double getWinLossRatio() { /* ... */ int tg = totalWins+totalLosses; 
+return (tg==0)?0.0:((double)totalWins/tg); }
 
     // --- Setters (for loading) ---
     // Setters remain the same...
