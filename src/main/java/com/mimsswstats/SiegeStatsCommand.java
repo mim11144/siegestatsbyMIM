@@ -454,23 +454,42 @@ public class SiegeStatsCommand implements CommandExecutor {
         java.util.function.Function<PlayerStats, String> valueExtractor;
         String headerTitle;
 
-        // Comparators remain the same
-        switch (statType) {
-            case "kills": headerTitle = "Kills"; comparator = Comparator.comparingInt(PlayerStats::getTotalKills).reversed(); valueExtractor = stats -> ""+stats.getTotalKills(); 
-break;
-            case "damage": case "dmg": headerTitle = "Damage"; comparator = Comparator.comparingDouble(PlayerStats::getTotalDamage).reversed(); valueExtractor = stats -> String.format("%.1f", stats.getTotalDamage()); 
-break;
-            case "deaths": headerTitle = "Deaths"; comparator = Comparator.comparingInt(PlayerStats::getTotalDeaths).reversed(); valueExtractor = stats -> ""+stats.getTotalDeaths(); 
-break;
-            case "assists": headerTitle = "Assists"; comparator = Comparator.comparingInt(PlayerStats::getTotalAssists).reversed(); valueExtractor = stats -> ""+stats.getTotalAssists(); 
-break;
-            case "kda": headerTitle = "KDA"; comparator = Comparator.comparingDouble(PlayerStats::getKdaRatio).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getKdaRatio()); 
-break;
-            case "captime": headerTitle = "CapTime"; comparator = Comparator.comparingDouble(PlayerStats::getTotalCaptureTime).reversed(); valueExtractor = stats -> String.format("%.2f", stats.getTotalCaptureTime()) + "m"; 
-break;
-            default: sender.sendMessage("§cInvalid stat type."); return;
-        }
-
+   switch (statType) {
+    case "kills":
+        headerTitle = "Kills";
+        comparator = Comparator.comparingInt(PlayerStats::getTotalKills).reversed();
+        valueExtractor = stats -> "" + stats.getTotalKills();
+        break;
+    case "damage":
+    case "dmg":
+        headerTitle = "Damage";
+        comparator = Comparator.comparingDouble(PlayerStats::getTotalDamage).reversed();
+        valueExtractor = stats -> String.format("%.1f", stats.getTotalDamage());
+        break;
+    case "deaths":
+        headerTitle = "Deaths";
+        comparator = Comparator.comparingInt(PlayerStats::getTotalDeaths).reversed();
+        valueExtractor = stats -> "" + stats.getTotalDeaths();
+        break;
+    case "assists":
+        headerTitle = "Assists";
+        comparator = Comparator.comparingInt(PlayerStats::getTotalAssists).reversed();
+        valueExtractor = stats -> "" + stats.getTotalAssists();
+        break;
+    case "kda":
+        headerTitle = "KDA";
+        comparator = Comparator.comparingDouble(PlayerStats::getKdaRatio).reversed();
+        valueExtractor = stats -> String.format("%.2f", stats.getKdaRatio());
+        break;
+    case "captime":
+        headerTitle = "CapTime";
+        comparator = Comparator.comparingDouble(PlayerStats::getTotalCaptureTime).reversed();
+        valueExtractor = stats -> String.format("%.2f", stats.getTotalCaptureTime()) + "m";
+        break;
+    default:
+        sender.sendMessage("§cInvalid stat type.");
+        return;
+}
         sender.sendMessage("§6§l═ Top " + topCount + " Players by " + headerTitle + " ═");
 
         List<PlayerStats> sortedStats = allPlayerStats.values().stream()
