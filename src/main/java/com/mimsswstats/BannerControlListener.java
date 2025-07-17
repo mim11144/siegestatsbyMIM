@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ public class BannerControlListener implements Listener {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onBannerControlSessionEnded(BannerControlSessionEndedEvent event) {
         Siege siege = event.getSiege();
         String siegeId = plugin.getSiegeListener().getActiveSiegeId(siege);
@@ -39,14 +40,12 @@ public class BannerControlListener implements Listener {
             plugin.getLogger().warning("[BannerControlListener] BannerControlSessionEndedEvent for non-tracked or null siege?");
             return;
         }
-        plugin.getLogger().info("[DEBUG] BannerControlSessionEndedEvent triggered for siege " + siegeId);
 
         List<Resident> officialControllers = siege.getBannerControllingResidents();
         Map<UUID, Long> internalControllers = controllingPlayersBySiege.computeIfAbsent(siegeId, k -> new ConcurrentHashMap<>());
 
         if (officialControllers == null || officialControllers.isEmpty()) {
             // Official list empty - handle as loss of control.
-            plugin.getLogger().info("[DEBUG] Official controller list EMPTY after BannerControlSessionEndedEvent for siege " + siegeId + ". Assuming control lost.");
             if (!internalControllers.isEmpty()) {
                 finalizeAndClearSiegeControllers(siegeId, eventTime, null, null); // Log time for who we thought was controlling
             }
@@ -179,7 +178,7 @@ public class BannerControlListener implements Listener {
     }
 
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onSiegeEnd(SiegeEndEvent event) {
         Siege siege = event.getSiege();
         String townName = (siege != null && siege.getTown() != null) ? siege.getTown().getName() : "Unknown Town";
@@ -197,11 +196,10 @@ public class BannerControlListener implements Listener {
     }
 
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onBattleSessionEnd(BattleSessionEndedEvent event) {
         long battleEndTime = System.currentTimeMillis();
         plugin.getLogger().info("[DEBUG] BattleSessionEndedEvent triggered. Finalizing capture time for ALL tracked sieges.");
-
         if (controllingPlayersBySiege.isEmpty()) {
             plugin.getLogger().info("[DEBUG] BattleSessionEndedEvent: No sieges currently being tracked.");
             return;

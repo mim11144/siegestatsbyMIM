@@ -89,7 +89,6 @@ public class SiegeStats {
     public void setAttackersWon(boolean attackersWon){ this.attackersWon = attackersWon; }
     public void setDefendersWon(boolean defendersWon) { this.defendersWon = defendersWon; }
     public void setActive(boolean active) { isActive = active; }
-    public void endSiege() { this.isActive = false; 
-this.endTimeMillis = System.currentTimeMillis();}
+    public void endSiege() { this.isActive = false; this.endTimeMillis = System.currentTimeMillis();}
     public int whoWon(){ return defendersWon ? 2 : (attackersWon ? 1 : 0); }
 }

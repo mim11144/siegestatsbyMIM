@@ -89,9 +89,6 @@ public class PlayerDamageListener implements Listener {
                 // Record the damage action using UUIDs
                 plugin.getStatsManager().recordSiegeAction(siegeId, damager.getUniqueId(), 0, 0, finalDamage, 0.0, 0); // 0 assists here
 
-                // <<< NEW: Track this damage event for potential assists >>>
-                plugin.getStatsManager().addRecentDamager(damaged.getUniqueId(), damager.getUniqueId());
-                plugin.getLogger().finest("[DEBUG] Added damager " + damager.getName() + " for victim " + damaged.getName() + " for assist tracking.");
 
 
                 // Ensure both players are marked as participants (manager handles duplicates)

@@ -53,9 +53,57 @@
                                 <artifact>*:*</artifact>
                                 <excludes>
                                     <exclude>module-info.class</exclude>
+                                    <!-- Exclude Towny and related dependencies -->
+                                    <exclude>com/palmergames/bukkit/towny/**</exclude>
+                                    <exclude>com/github/TownyAdvanced/SiegeWar/**</exclude>
+                                    <exclude>com/earth2me/essentials/**</exclude>
+                                    <exclude>org/dynmap/**</exclude>
+                                </excludes>
+                            </filter>
+                            <!-- Explicitly exclude the dependencies -->
+                            <filter>
+                                <artifact>com.palmergames.bukkit.towny:towny</artifact>
+                                <excludes>
+                                    <exclude>**</exclude>
+                                </excludes>
+                            </filter>
+                            <filter>
+                                <artifact>com.github.TownyAdvanced:SiegeWar</artifact>
+                                <excludes>
+                                    <exclude>**</exclude>
+                                </excludes>
+                            </filter>
+                            <filter>
+                                <artifact>us.dynmap:dynmap-api</artifact>
+                                <excludes>
+                                    <exclude>**</exclude>
                                 </excludes>
                             </filter>
                         </filters>
+                        <artifactSet>
+                            <excludes>
+                                <!-- Exclude all Towny related artifacts -->
+                                <exclude>com.palmergames.bukkit.towny:*</exclude>
+                                <exclude>com.github.TownyAdvanced:*</exclude>
+                                <exclude>com.earth2me.essentials:*</exclude>
+                                <exclude>org.dynmap:*</exclude>
+                                
+                                <!-- Explicit exclusions for specific artifacts -->
+                                <exclude>com.github.TownyAdvanced:Towny</exclude>
+                                <exclude>com.github.TownyAdvanced:TownyChat</exclude>
+                                <exclude>com.github.TownyAdvanced:Dynmap-Towny</exclude>
+                                <exclude>com.github.TownyAdvanced:SiegeWar</exclude>
+                                <exclude>com.palmergames.bukkit.towny:towny</exclude>
+                                <exclude>com.earth2me.essentials:Essentials</exclude>
+                                <exclude>org.dynmap:*</exclude>
+                                <exclude>us.dynmap:*</exclude>
+                                <exclude>us.dynmap:dynmap-api-*</exclude>
+                                <exclude>us.dynmap:dynmap-api</exclude>
+                                <exclude>org.dynmap:dynmap-api-*</exclude>
+                                <exclude>org.dynmap:dynmap-api</exclude>
+                            </excludes>
+                        </artifactSet>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
                     </configuration>
                 </execution>
             </executions>
@@ -102,6 +150,17 @@
             <artifactId>towny</artifactId>
             <version>0.101.1.5</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.3-jre</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.nanohttpd</groupId>
+            <artifactId>nanohttpd</artifactId>
+            <version>2.3.1</version>
         </dependency>
         <dependency>
             <groupId>net.kyori</groupId>

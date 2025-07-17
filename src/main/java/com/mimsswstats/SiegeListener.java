@@ -1,21 +1,26 @@
 package com.mimsswstats;
 
-import com.gmail.goosius.siegewar.enums.SiegeSide;
+// SiegeWar Imports
+// import com.gmail.goosius.siegewar.enums.SiegeSide; // No longer directly used here
 import com.gmail.goosius.siegewar.events.SiegeEndEvent;
 import com.gmail.goosius.siegewar.events.SiegeWarStartEvent;
 import com.gmail.goosius.siegewar.objects.Siege;
+
+// Bukkit Imports
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
+// Java Util Imports
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SiegeListener implements Listener {
     private final SiegeStatsPlugin plugin;
     // Map: Siege Object -> Unique Siege ID (e.g., "townname_1")
     private final ConcurrentHashMap<Siege, String> activeSiegeIds;
-private SiegeStats siegeStats;
+    // private SiegeStats siegeStats; // REMOVED - This field was uninitialized and would cause NPEs.
+
     public SiegeListener(SiegeStatsPlugin plugin) {
         this.plugin = plugin;
         this.activeSiegeIds = new ConcurrentHashMap<>();
@@ -39,6 +44,7 @@ private SiegeStats siegeStats;
         String townName = siege.getTown().getName();
         plugin.getLogger().info("[DEBUG] Siege starting for town: " + townName);
 
+        // Check if this siege object is already being tracked (shouldn't happen ideally)
         if (activeSiegeIds.containsKey(siege)) {
             plugin.getLogger().warning("[DEBUG] Siege object for town " + townName + " is already being tracked with ID: " + activeSiegeIds.get(siege) + ". Ignoring duplicate start event.");
             return;
@@ -59,40 +65,39 @@ private SiegeStats siegeStats;
         logActiveSiegesState(); // Log current state
     }
 
-    @EventHandler(priority = EventPriority.MONITOR) // Monitor ensures SiegeWar's end logic might have run
+    @EventHandler(priority = EventPriority.LOWEST) // PRIORITY CHANGED TO LOWEST
     public void onSiegeEnd(SiegeEndEvent event) {
-        plugin.getLogger().info("[DEBUG] SiegeEndEvent triggered");
-        siegeStats.setActive(false) ;
-
+        plugin.getLogger().info("[DEBUG] SiegeEndEvent triggered (SiegeListener - LOWEST priority)");
+        
         if (event == null || event.getSiege() == null) {
-            plugin.getLogger().warning("[DEBUG] Event or siege is null in end event!");
+            plugin.getLogger().warning("[DEBUG] SiegeEndEvent (SiegeListener) or its Siege object is null!");
             return;
         }
 
         Siege siege = event.getSiege();
-        // Remove the siege object from tracking and get its ID
-        String siegeId = activeSiegeIds.remove(siege);
-if(siege.getSiegeWinner() == SiegeSide.ATTACKERS){
-    siegeStats.setAttackersWon(true);
-    siegeStats.setDefendersWon(false);
-}
-if(siege.getSiegeWinner() == SiegeSide.DEFENDERS){
-    siegeStats.setDefendersWon(true);
-    siegeStats.setAttackersWon(false);
-}
-        if (siegeId != null) {
-            plugin.getLogger().info("[DEBUG] Siege object removed from active tracking. Town: " + siege.getTown().getName() + ", ID: " + siegeId);
-            // The actual ending logic (moving stats, calculating duration etc.) is handled
-            // by SiegeCompletionListener which calls statsManager.endSiege(siegeId)
-            // We don't call endSiege here to avoid potential race conditions if completion listener runs later.
-            Bukkit.broadcastMessage("§e[SiegeStats] Tracking ended for siege in " +
-                    (siege.getTown() != null ? siege.getTown().getName() : "Unknown Town") + " (ID: " + siegeId + ")");
+        String townName = (siege.getTown() != null) ? siege.getTown().getName() : "Unknown Town";
+
+        // Attempt to get the siegeId using the Siege object
+        String siegeIdFromMap = activeSiegeIds.get(siege); 
+
+        if (activeSiegeIds.containsKey(siege)) {
+            // Remove the Siege object from the map, effectively stop tracking it by its object reference.
+            String removedId = activeSiegeIds.remove(siege); // removedId should be same as siegeIdFromMap
+            
+            if (removedId != null) {
+                plugin.getLogger().info("[DEBUG] Siege object for town " + townName + " (ID: " + removedId + ") removed from activeSiegeIds map by SiegeListener.");
+                // The broadcast here is optional, as SiegeCompletionListener or other parts might handle user notifications.
+                // Bukkit.broadcastMessage("§e[SiegeStats] Tracking via Siege object concluded for siege in " + townName + " (ID: " + removedId + ")");
+            } else {
+                 // This would be unusual if containsKey was true.
+                plugin.getLogger().warning("[DEBUG] Siege object for " + townName + " was in activeSiegeIds map but remove() returned null ID.");
+            }
         } else {
-            // This might happen if the plugin was reloaded mid-siege or if start event failed
-            plugin.getLogger().warning("[DEBUG] SiegeEndEvent for a siege object that was not being tracked. Town: " +
-                    (siege.getTown() != null ? siege.getTown().getName() : "Unknown Town") + ". Stats might be incomplete if it was active before.");
+            plugin.getLogger().info("[DEBUG] SiegeEndEvent (SiegeListener - LOWEST): Siege for town " + townName + 
+                                       " (Object Hash: " + siege.hashCode() + ") was not found in (or already removed from) activeSiegeIds map. " +
+                                       "This is expected if it was processed and removed by higher priority listeners (e.g., via deletion logic).");
         }
-        logActiveSiegesState(); // Log current state
+        logActiveSiegesState(); // Log current state of the map
     }
 
     /**

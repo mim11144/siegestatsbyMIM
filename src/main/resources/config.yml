@@ -5,3 +5,7 @@ debug-mode: false
 formatting:
   date-format: "MM/dd/yyyy HH:mm:ss"
   number-format: "#,##0.##"
+
+web-server:
+  enabled: true
+  port: 8080

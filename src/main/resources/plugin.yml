@@ -1,13 +1,15 @@
 name: SiegeStats
 version: 1.0
 main: com.mimsswstats.SiegeStatsPlugin
-api-version: 1.20
+api-version: 1.21
 depend: [SiegeWar, Towny]
 commands:
   siegestats:
     description: View siege statistics
     usage: /siegestats <player/top/siege> [args...]
     permission: siegestats.use
+    aliases:
+      - ss
 permissions:
   siegestats.use:
     description: Allows use of siegestats commands
