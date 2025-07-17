@@ -1,0 +1,251 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #0e1012;
+    color: #f2f2f2;
+}
+
+header.top-bar {
+    background-color: #1c1e22;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #fff;
+}
+
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#mainSearch {
+    padding: 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    width: 280px;
+    background-color: #2b2d31; 
+    color: #f2f2f2; 
+}
+
+.search-button {
+    background-color: #3a3d42;
+    color: #fff;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+}
+
+.search-button:hover {
+    background-color: #505358;
+}
+
+.main-layout {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+
+#active-sieges, #player-stats {
+    background-color: #1c1e22;
+    border-radius: 8px;
+    padding: 20px;
+    flex: 1;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+#player-stats {
+    overflow-x: auto;
+}
+
+h2 {
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #ddd;
+}
+
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+    text-align: left;
+    vertical-align: middle;
+}
+
+th {
+    background-color: #2b2d31;
+}
+
+tr:hover {
+    background-color: #232529;
+}
+
+.siege-card {
+    background-color: #2b2d31;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 12px 15px; 
+    margin-bottom: 10px; 
+    text-align: center; 
+}
+
+.siege-card h3 {
+    font-size: 1.3em; 
+    margin-top: 0;
+    margin-bottom: 5px; 
+    color: #e0e0e0; 
+}
+
+.siege-card p {
+    font-size: 0.9em; 
+    margin: 3px 0; 
+    color: #bbb;
+}
+
+.siege-card p.siege-meta-info { 
+    font-size: 0.8em; 
+    color: #888; 
+    margin-bottom: 8px;
+}
+
+.siege-card p.siege-balance {
+    font-size: 0.95em;
+    color: #ccc;
+    margin: 6px 0 2px 0; 
+}
+
+.siege-card p.siege-winning-side {
+    font-size: 0.9em;
+    color: #ccc;
+    margin: 2px 0 8px 0; 
+}
+
+.siege-card p span.stat-value { 
+    color: #fff;
+    font-weight: bold;
+}
+
+.siege-card span.winning-attackers { 
+    color: #ff6b6b; 
+    font-weight: bold;
+}
+.siege-card span.winning-defenders { 
+    color: #6b9bff; 
+    font-weight: bold;
+}
+
+.siege-participants-display {
+    display: flex;
+    justify-content: space-between;
+    text-align: left; 
+    margin-top: 8px;
+    padding: 8px 5px; 
+    border-top: 1px solid #3a3d42; 
+}
+
+.siege-participant-attacker,
+.siege-participant-defender {
+    width: 48%; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.siege-participant-attacker {
+    align-items: flex-start; 
+}
+
+.siege-participant-defender {
+    align-items: flex-end; 
+}
+
+.siege-participants-display .participant-label {
+    display: block;
+    font-size: 0.75em; 
+    color: #888; 
+    margin-bottom: 1px;
+    text-transform: uppercase;
+}
+
+.siege-participants-display .participant-name {
+    font-size: 1em; 
+    color: #fff;
+    font-weight: bold;
+}
+
+.siege-participant-attacker .participant-name {
+    color: #ff8a8a; 
+}
+
+.siege-participant-defender .participant-name {
+    color: #8aaaff; 
+}
+
+.siege-card p.siege-total-participants {
+    font-size: 0.9em;
+    color: #ccc;
+    margin-top: 8px; /* Space above participants line */
+    padding-top: 8px; /* Space inside if there was a border */
+    border-top: 1px solid #3a3d42; /* Separator */
+    text-align: center; 
+}
+
+
+#player-stats-table img.player-head {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-radius: 3px;
+    border: 1px solid #444;
+}
+
+.filter-container {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-container label {
+    font-size: 16px;
+    color: #ccc;
+}
+
+#playerSortDropdown {
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background-color: #2b2d31;
+    color: #f2f2f2;
+    cursor: pointer;
+    outline: none;
+}
+
+#playerSortDropdown:hover {
+    background-color: #3a3d42;
+    border-color: #444;
+}
+
+#playerSortDropdown option {
+    background-color: #2b2d31;
+    color: #f2f2f2;
+}

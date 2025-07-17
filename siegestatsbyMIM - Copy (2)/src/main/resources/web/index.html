@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SiegeStats</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="top-bar">
+        <h1>SiegeStats</h1>
+        <div class="search-container">
+            <input type="text" id="mainSearch" placeholder="Search for players or sieges...">
+            <button class="search-button">Search</button> </div>
+    </header>
+
+    <main class="main-layout">
+        <section id="active-sieges">
+            <h2>Current Sieges</h2>
+            <div id="active-sieges-list">Loading active sieges...</div>
+        </section>
+
+        <section id="player-stats">
+            <h2>Best Players</h2>
+            <div class="filter-container">
+                <label for="playerSortDropdown">Sort by: </label>
+                <select id="playerSortDropdown">
+                    <option value="kadar">Kills + Assists</option>
+                    <option value="kills">Kills</option>
+                    <option value="deaths">Deaths</option>
+                    <option value="assists">Assists</option>
+                    <option value="damage">Damage</option>
+                </select>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Kills</th>
+                        <th>Deaths</th>
+                        <th>Assists</th>
+                        <th>Damage</th>
+                    </tr>
+                </thead>
+                <tbody id="player-stats-table">
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
